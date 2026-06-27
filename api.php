@@ -1147,52 +1147,137 @@ switch ($action) {
         header('Content-Type: application/json');
         $tgl_mulai = $conn->real_escape_string($_GET['tgl_mulai'] ?? '');
         $tgl_selesai = $conn->real_escape_string($_GET['tgl_selesai'] ?? '');
+        
         if (empty($tgl_mulai) || empty($tgl_selesai)) {
             echo json_encode(["status"=>"error","message"=>"Rentang tanggal belum dipilih."]);
             break;
         }
 
-        // 1. Ambil data user yang aktif (staf)
+        $satuan_minggu_ini = $tgl_selesai;
+        $sabtu_kemarin = date('Y-m-d', strtotime('-1 day', strtotime($satuan_minggu_ini)));
+        $minggu_lalu = date('Y-m-d', strtotime('-7 days', strtotime($satuan_minggu_ini)));
+        $senin_dua_minggu_lalu = date('Y-m-d', strtotime('-13 days', strtotime($minggu_lalu)));
+        $minggu_lalu_penuh = date('Y-m-d', strtotime('-7 days', strtotime($minggu_lalu)));
+
+        if (!$conn) {
+            echo json_encode(["status"=>"error","message"=>"Koneksi database gagal atau tidak tersedia."]);
+            break;
+        }
+
         $resUsers = $conn->query("SELECT username, fullName, role, cabang FROM users WHERE role != 'Owner' AND role != 'VIP' AND role != 'Investor' ORDER BY fullName ASC");
-        $users = $resUsers ? $resUsers->fetch_all(MYSQLI_ASSOC) : [];
+        if (!$resUsers) {
+            echo json_encode(["status"=>"error","message"=>"Query users gagal: " . $conn->error]);
+            break;
+        }
+        $users = $resUsers->fetch_all(MYSQLI_ASSOC);
 
-        // 2. Ambil konfigurasi gaji per role
         $resSalConfig = $conn->query("SELECT * FROM hoki_salary_config");
-        $salConfigs = [];
-        if ($resSalConfig) {
-            while ($sc = $resSalConfig->fetch_assoc()) {
-                $salConfigs[$sc['role_name']] = $sc;
-            }
+        if (!$resSalConfig) {
+            echo json_encode(["status"=>"error","message"=>"Query salary config gagal: " . $conn->error]);
+            break;
+        }
+        $salConfigsLower = [];
+        while ($sc = $resSalConfig->fetch_assoc()) {
+            $salConfigsLower[strtolower(trim($sc['role_name']))] = $sc;
         }
 
-        // 3. Ambil relasi hierarki atasan - bawahan
         $resHierarchy = $conn->query("SELECT * FROM hoki_staff_hierarchy");
+        if (!$resHierarchy) {
+            echo json_encode(["status"=>"error","message"=>"Query hierarchy gagal: " . $conn->error]);
+            break;
+        }
         $atasanMapping = [];
-        if ($resHierarchy) {
-            while ($h = $resHierarchy->fetch_assoc()) {
-                $atasanMapping[$h['atasan_username']][] = $h['bawahan_username'];
-            }
+        while ($h = $resHierarchy->fetch_assoc()) {
+            $atasanMapping[$h['atasan_username']][] = $h['bawahan_username'];
         }
 
-        // 4. Ambil data settlement untuk hitung omset & kehadiran
-        $resSettlement = $conn->query("SELECT waktu, petugas, cabang, grand_total, DAYOFWEEK(waktu) as dow FROM laporan_settlement WHERE waktu >= '{$tgl_mulai} 00:00:00' AND waktu <= '{$tgl_selesai} 23:59:59'");
-        $settlements = $resSettlement ? $resSettlement->fetch_all(MYSQLI_ASSOC) : [];
+        // 4. Fetch data settlement for daily salary & daily bonus ($minggu_lalu s/d $sabtu_kemarin)
+        $resSettlementGP = $conn->query("SELECT waktu, petugas, cabang, grand_total, DAYOFWEEK(waktu) as dow FROM laporan_settlement WHERE waktu >= '{$minggu_lalu} 00:00:00' AND waktu <= '{$sabtu_kemarin} 23:59:59'");
+        if (!$resSettlementGP) {
+            echo json_encode(["status"=>"error","message"=>"Query settlement GP gagal: " . $conn->error]);
+            break;
+        }
+        $settlementsGP = $resSettlementGP->fetch_all(MYSQLI_ASSOC);
 
-        $omsetHarianCabang = [];
-        $kehadiranStaff = [];
+        $omsetHarianCabangGP = [];
+        $kehadiranStaffGP = [];
 
-        foreach ($settlements as $set) {
+        foreach ($settlementsGP as $set) {
             $tgl = date('Y-m-d', strtotime($set['waktu']));
             $cab = $set['cabang'];
-            $omsetHarianCabang[$tgl][$cab] = ($omsetHarianCabang[$tgl][$cab] ?? 0) + (int)$set['grand_total'];
+            $omsetHarianCabangGP[$tgl][$cab] = ($omsetHarianCabangGP[$tgl][$cab] ?? 0) + (int)$set['grand_total'];
 
             $petugasNames = array_map('trim', preg_split('/[,&]/', $set['petugas']));
             foreach ($users as $u) {
                 if (in_array(strtolower($u['username']), array_map('strtolower', $petugasNames)) || in_array(strtolower($u['fullName']), array_map('strtolower', $petugasNames))) {
-                    $kehadiranStaff[$u['username']][$tgl] = [
+                    $kehadiranStaffGP[$u['username']][$tgl] = [
                         'cabang' => $cab,
                         'dow' => (int)$set['dow']
                     ];
+                }
+            }
+        }
+
+        // 5. Fetch data settlement for weekly bonus ($senin_dua_minggu_lalu s/d $minggu_lalu_penuh)
+        $resSettlementBM = $conn->query("SELECT waktu, petugas, cabang, grand_total FROM laporan_settlement WHERE waktu >= '{$senin_dua_minggu_lalu} 00:00:00' AND waktu <= '{$minggu_lalu_penuh} 23:59:59'");
+        if (!$resSettlementBM) {
+            echo json_encode(["status"=>"error","message"=>"Query settlement BM gagal: " . $conn->error]);
+            break;
+        }
+        $settlementsBM = $resSettlementBM->fetch_all(MYSQLI_ASSOC);
+
+        $omsetHarianCabangBM = [];
+        $kehadiranStaffBM = [];
+
+        foreach ($settlementsBM as $set) {
+            $tgl = date('Y-m-d', strtotime($set['waktu']));
+            $cab = $set['cabang'];
+            $omsetHarianCabangBM[$tgl][$cab] = ($omsetHarianCabangBM[$tgl][$cab] ?? 0) + (int)$set['grand_total'];
+
+            $petugasNames = array_map('trim', preg_split('/[,&]/', $set['petugas']));
+            foreach ($users as $u) {
+                if (in_array(strtolower($u['username']), array_map('strtolower', $petugasNames)) || in_array(strtolower($u['fullName']), array_map('strtolower', $petugasNames))) {
+                    $kehadiranStaffBM[$u['username']][$tgl] = [
+                        'cabang' => $cab
+                    ];
+                }
+            }
+        }
+
+        // 6. Fetch data settlement for monthly bonus (if transition week)
+        $bulan_filter = date('m', strtotime($tgl_mulai));
+        $bulan_sekarang = date('m');
+        $is_transisi_bulan = ($bulan_filter !== $bulan_sekarang);
+        
+        $settlementsBB = [];
+        $omsetHarianCabangBB = [];
+        $kehadiranStaffBB = [];
+        $tgl_awal_bulan_lalu = '';
+        $tgl_akhir_bulan_lalu = '';
+
+        if ($is_transisi_bulan) {
+            $tgl_awal_bulan_lalu = date('Y-m-01', strtotime($tgl_mulai));
+            $tgl_akhir_bulan_lalu = date('Y-m-t', strtotime($tgl_mulai));
+
+            $resSettlementBB = $conn->query("SELECT waktu, petugas, cabang, grand_total FROM laporan_settlement WHERE waktu >= '{$tgl_awal_bulan_lalu} 00:00:00' AND waktu <= '{$tgl_akhir_bulan_lalu} 23:59:59'");
+            if (!$resSettlementBB) {
+                echo json_encode(["status"=>"error","message"=>"Query settlement BB gagal: " . $conn->error]);
+                break;
+            }
+            $settlementsBB = $resSettlementBB->fetch_all(MYSQLI_ASSOC);
+
+            foreach ($settlementsBB as $set) {
+                $tgl = date('Y-m-d', strtotime($set['waktu']));
+                $cab = $set['cabang'];
+                $omsetHarianCabangBB[$tgl][$cab] = ($omsetHarianCabangBB[$tgl][$cab] ?? 0) + (int)$set['grand_total'];
+
+                $petugasNames = array_map('trim', preg_split('/[,&]/', $set['petugas']));
+                foreach ($users as $u) {
+                    if (in_array(strtolower($u['username']), array_map('strtolower', $petugasNames)) || in_array(strtolower($u['fullName']), array_map('strtolower', $petugasNames))) {
+                        $kehadiranStaffBB[$u['username']][$tgl] = [
+                            'cabang' => $cab
+                        ];
+                    }
                 }
             }
         }
@@ -1201,7 +1286,11 @@ switch ($action) {
         foreach ($users as $u) {
             $username = $u['username'];
             $role = trim($u['role']);
-            $conf = $salConfigs[$role] ?? [
+            $role_lower = strtolower($role);
+            if ($role_lower === 'staff' || $role_lower === 'junior staff') {
+                $role_lower = 'junior staff';
+            }
+            $conf = $salConfigsLower[$role_lower] ?? [
                 'gaji_weekday' => 0,
                 'gaji_weekend' => 0,
                 'gaji_bulanan' => 0,
@@ -1220,24 +1309,21 @@ switch ($action) {
                 'target_hadir_bulanan' => 25
             ];
 
-            $logsKehadiran = $kehadiranStaff[$username] ?? [];
+            // 1. Gaji Pokok & Bonus Harian ($minggu_lalu s/d $sabtu_kemarin)
+            $logsKehadiranGP = $kehadiranStaffGP[$username] ?? [];
             $daysWeekday = 0;
             $daysWeekend = 0;
-            
             $subtotalWeekday = 0;
             $subtotalWeekend = 0;
             $totalBonusHarian = 0;
             $qtyBonusHarian = 0;
-            $totalOmsetStaff = 0;
+            $totalOmsetStaffGP = 0;
             $rincian = [];
 
-            // Looping harian untuk hitung gapok & bonus harian
-            foreach ($logsKehadiran as $tgl => $log) {
-                // Hitung omset akumulasi staf selama dia berjaga
-                $cabOmset = $omsetHarianCabang[$tgl][$log['cabang']] ?? 0;
-                $totalOmsetStaff += $cabOmset;
+            foreach ($logsKehadiranGP as $tgl => $log) {
+                $cabOmset = $omsetHarianCabangGP[$tgl][$log['cabang']] ?? 0;
+                $totalOmsetStaffGP += $cabOmset;
 
-                // Hitung Gaji Pokok
                 $dow = (int)$log['dow'];
                 if ($dow === 1 || $dow === 7) { // 1 = Minggu, 7 = Sabtu -> WEEKEND
                     $daysWeekend++;
@@ -1247,19 +1333,17 @@ switch ($action) {
                     $subtotalWeekday += (int)$conf['gaji_weekday'];
                 }
 
-                // BONUS HARIAN: Jika omset cabang pada hari itu mencapai target harian
                 if ($cabOmset >= (int)$conf['target_omset_harian'] && (int)$conf['bonus_harian'] > 0) {
                     $totalBonusHarian += (int)$conf['bonus_harian'];
                     $qtyBonusHarian++;
                 }
             }
 
-            // Masukkan komponen ke rincian slip
             if ($daysWeekday > 0) {
-                $rincian[] = ["kategori" => "Gaji Weekday", "nominal" => (int)$conf['gaji_weekday'], "qty" => $daysWeekday, "subtotal" => $subtotalWeekday];
+                $rincian[] = ["kategori" => "Gaji Weekday (Cut-off)", "nominal" => (int)$conf['gaji_weekday'], "qty" => $daysWeekday, "subtotal" => $subtotalWeekday];
             }
             if ($daysWeekend > 0) {
-                $rincian[] = ["kategori" => "Gaji Weekend", "nominal" => (int)$conf['gaji_weekend'], "qty" => $daysWeekend, "subtotal" => $subtotalWeekend];
+                $rincian[] = ["kategori" => "Gaji Weekend (Cut-off)", "nominal" => (int)$conf['gaji_weekend'], "qty" => $daysWeekend, "subtotal" => $subtotalWeekend];
             }
             if ((int)$conf['gaji_bulanan'] > 0) {
                 $rincian[] = ["kategori" => "Gaji Bulanan", "nominal" => (int)$conf['gaji_bulanan'], "qty" => 1, "subtotal" => (int)$conf['gaji_bulanan']];
@@ -1271,26 +1355,43 @@ switch ($action) {
                 $rincian[] = ["kategori" => "Bonus Harian Cabang", "nominal" => (int)$conf['bonus_harian'], "qty" => $qtyBonusHarian, "subtotal" => $totalBonusHarian];
             }
 
-            $totalMasuk = count($logsKehadiran);
+            $totalMasuk = count($logsKehadiranGP);
 
-            // LOGIC BONUS MINGGUAN: Wajib Tembus Target Omset DAN Absen minimal 6 Hari (Menggunakan &&)
-            $winMingguan = ($totalOmsetStaff >= (int)$conf['target_omset_mingguan'] && $totalMasuk >= 6);
+            // 2. Bonus Mingguan ($senin_dua_minggu_lalu s/d $minggu_lalu_penuh)
+            $logsKehadiranBM = $kehadiranStaffBM[$username] ?? [];
+            $totalMasukBM = count($logsKehadiranBM);
+            $totalOmsetStaffBM = 0;
+            foreach ($logsKehadiranBM as $tgl => $log) {
+                $totalOmsetStaffBM += $omsetHarianCabangBM[$tgl][$log['cabang']] ?? 0;
+            }
+
+            $winMingguan = ($totalOmsetStaffBM >= (int)$conf['target_omset_mingguan'] && $totalMasukBM >= 6);
             $totalBonusMingguan = $winMingguan ? (int)$conf['bonus_mingguan'] : 0;
             if ($totalBonusMingguan > 0) {
-                $rincian[] = ["kategori" => "Bonus Mingguan", "nominal" => $totalBonusMingguan, "qty" => 1, "subtotal" => $totalBonusMingguan];
+                $rincian[] = ["kategori" => "Bonus Mingguan (Periode Lalu)", "nominal" => $totalBonusMingguan, "qty" => 1, "subtotal" => $totalBonusMingguan];
             }
 
-            // LOGIC BONUS BULANAN: Wajib Tembus Target Omset DAN Absen minimal 25 Hari (Menggunakan &&)
-            $diffDays = (strtotime($tgl_selesai) - strtotime($tgl_mulai)) / 86400 + 1;
-            $targetBulan = ($diffDays >= 31) ? (int)$conf['target_omset_bulanan_31'] : (int)$conf['target_omset_bulanan_30'];
-            
-            $winBulanan = ($totalOmsetStaff >= $targetBulan && $totalMasuk >= 25);
-            $totalBonusBulanan = $winBulanan ? (int)$conf['bonus_bulanan'] : 0;
-            if ($totalBonusBulanan > 0) {
-                $rincian[] = ["kategori" => "Bonus Bulanan", "nominal" => $totalBonusBulanan, "qty" => 1, "subtotal" => $totalBonusBulanan];
+            // 3. Bonus Bulanan (Cut-off Tanggal 1 s/d Tanggal Terakhir bulan lalu)
+            $winBulanan = false;
+            $totalBonusBulanan = 0;
+            if ($is_transisi_bulan) {
+                $logsKehadiranBB = $kehadiranStaffBB[$username] ?? [];
+                $totalMasukBB = count($logsKehadiranBB);
+                $totalOmsetStaffBB = 0;
+                foreach ($logsKehadiranBB as $tgl => $log) {
+                    $totalOmsetStaffBB += $omsetHarianCabangBB[$tgl][$log['cabang']] ?? 0;
+                }
+
+                $daysInMonth = (int)date('t', strtotime($tgl_mulai));
+                $targetBulan = ($daysInMonth >= 31) ? (int)$conf['target_omset_bulanan_31'] : (int)$conf['target_omset_bulanan_30'];
+
+                $winBulanan = ($totalOmsetStaffBB >= $targetBulan && $totalMasukBB >= 25);
+                $totalBonusBulanan = $winBulanan ? (int)$conf['bonus_bulanan'] : 0;
+                if ($totalBonusBulanan > 0) {
+                    $rincian[] = ["kategori" => "Bonus Bulanan (Bulan Lalu)", "nominal" => $totalBonusBulanan, "qty" => 1, "subtotal" => $totalBonusBulanan];
+                }
             }
 
-            // Hitung total bersih sementara sebelum bonus jabatan
             $totalGajiFix = $subtotalWeekday + $subtotalWeekend + (int)$conf['gaji_bulanan'] + (int)$conf['tunjangan_jabatan'] + $totalBonusHarian + $totalBonusMingguan + $totalBonusBulanan;
 
             $payrollResults[$username] = [
@@ -1301,7 +1402,7 @@ switch ($action) {
                 'days_weekday' => $daysWeekday,
                 'days_weekend' => $daysWeekend,
                 'total_masuk' => $totalMasuk,
-                'total_omset' => $totalOmsetStaff,
+                'total_omset' => $totalOmsetStaffGP,
                 'win_bonus_harian_qty' => $qtyBonusHarian,
                 'win_bonus_mingguan' => $winMingguan,
                 'win_bonus_bulanan' => $winBulanan,
@@ -1320,7 +1421,11 @@ switch ($action) {
             if (isset($atasanMapping[$username])) {
                 $bawahans = $atasanMapping[$username];
                 $role = trim($pData['role']);
-                $conf = $salConfigs[$role] ?? [
+                $role_lower = strtolower($role);
+                if ($role_lower === 'staff' || $role_lower === 'junior staff') {
+                    $role_lower = 'junior staff';
+                }
+                $conf = $salConfigsLower[$role_lower] ?? [
                     'gaji_weekday' => 0,
                     'gaji_weekend' => 0,
                     'gaji_bulanan' => 0,
