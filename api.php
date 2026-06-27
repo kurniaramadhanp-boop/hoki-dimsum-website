@@ -361,7 +361,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS hoki_salary_config (
     target_hadir_bulanan INT DEFAULT 25
 )");
 
-$roles_default = ['Junior Staff', 'Senior Staff', 'Supervisor', 'Lead Supervisor', 'Manager Operasional', 'Finance & Accounting', 'HRD', 'Supply Chain & Logistics', 'Marketing'];
+$roles_default = ['Junior Staff', 'Senior Staff', 'Supervisor', 'Lead Supervisor', 'Manager Operasional', 'Finance & Accounting', 'HRD', 'Supply Chain & Logistics', 'Marketing', 'Magang'];
 foreach ($roles_default as $r_def) {
     $conn->query("INSERT IGNORE INTO hoki_salary_config (role_name) VALUES ('$r_def')");
 }
