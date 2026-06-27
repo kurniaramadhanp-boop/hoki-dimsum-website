@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hoki POS - Salary Staff</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=20260501">
+    
+    <script src="html2pdf.bundle.min.js"></script>
+
+    <style>
+    .salary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .salary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        padding: 20px;
+        box-shadow: var(--sh-sm);
+    }
+    
+    .salary-card h3 {
+        margin: 0 0 16px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        border-left: 3px solid var(--red);
+        padding-left: 10px;
+    }
+
+    .form-group-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .form-group-row-three {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .salary-form-control {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .salary-form-control label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .salary-form-control input, .salary-form-control select {
+        height: 38px;
+        padding: 0 12px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--r-md);
+        font-size: 13px;
+        font-family: 'DM Sans', sans-serif;
+        background: var(--surface);
+        color: var(--text);
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .salary-form-control input:focus, .salary-form-control select:focus {
+        border-color: var(--red);
+    }
+
+    .btn-action-small {
+        padding: 4px 8px;
+        font-size: 11px;
+        background: var(--red);
+        color: white;
+        border: none;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+    }
+
+    .h-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-top: 12px;
+    }
+    .h-table th {
+        background: var(--surface-2);
+        color: var(--text-muted);
+        text-align: left;
+        padding: 8px;
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 700;
+        border-bottom: 2px solid var(--border);
+    }
+    .h-table td {
+        padding: 8px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    .slip-container {
+        padding: 24px;
+        background: #ffffff;
+        color: #1a1a1a;
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    .slip-header {
+        text-align: center;
+        border-bottom: 2px dashed #ccc;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+    }
+
+    .slip-header h2 {
+        margin: 0;
+        font-size: 20px;
+        color: #d32f2f;
+        font-weight: 800;
+    }
+
+    .slip-header p {
+        margin: 4px 0 0;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .slip-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        font-size: 12px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 12px;
+    }
+
+    .slip-meta-label {
+        font-weight: 700;
+        color: #555;
+    }
+
+    .slip-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-bottom: 20px;
+    }
+
+    .slip-table th {
+        border-bottom: 2px solid #333;
+        padding: 8px 4px;
+        text-align: left;
+        font-weight: 700;
+    }
+
+    .slip-table td {
+        padding: 8px 4px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .slip-table .num {
+        text-align: right;
+        font-family: 'DM Mono', monospace;
+    }
+
+    .slip-table .row-total {
+        font-weight: 800;
+        border-top: 2px solid #333;
+        border-bottom: 2px solid #333;
+        font-size: 14px;
+    }
+
+    .slip-footer {
+        text-align: center;
+        font-size: 11px;
+        color: #888;
+        border-top: 1px dashed #ccc;
+        padding-top: 12px;
+        margin-top: 16px;
+    }
+
+    .btn-wa-slip, .btn-pdf-slip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: white;
+        border: none;
+        height: 40px;
+        border-radius: var(--r-md);
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 12px;
+    }
+    .btn-wa-slip { background: #25d366; }
+    .btn-pdf-slip { background: #0284c7; }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand" onclick="toggleSidebar()">
+        <div class="sidebar-logo">
+            <img src="Assets/logobrand.png" alt="Hoki">
+        </div>
+        <div class="sidebar-brand-text">
+            <div class="sidebar-brand-name">Hoki Dimsum</div>
+            <div class="sidebar-brand-sub">POS System v2.0</div>
+        </div>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()">‹</button>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-user">
+        <div class="user-card">
+            <div class="user-avatar" id="userAvatarInitial">?</div>
+            <div class="user-info">
+                <div class="user-name" id="sidebarUserName">Loading...</div>
+                <div class="user-role" id="sidebarUserRole">—</div>
+            </div>
+            <button class="btn-logout-icon" onclick="logout()" title="Logout">🚪</button>
+        </div>
+    </div>
+</aside>
+
+<div class="main-content" id="mainContent">
+
+    <header class="top-header">
+        <div class="header-left">
+            <div class="header-page-title">💵 Salary & Payroll Staff</div>
+        </div>
+        <div class="header-right">
+            <div class="clock-pill">
+                <div id="realtimeClock">00:00:00</div>
+                <div id="realtimeDate">...</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="page-body">
+
+        <div class="wh-card" style="margin-bottom:16px;">
+            <div class="wh-card-title">📅 Filter & Hitung Gaji Karyawan</div>
+            <div class="wh-form-row" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+                <div class="salary-form-control">
+                    <label for="filterStartDate">Mulai Tanggal</label>
+                    <input type="date" id="filterStartDate" style="width:160px;">
+                </div>
+                <div class="salary-form-control">
+                    <label for="filterEndDate">Sampai Tanggal</label>
+                    <input type="date" id="filterEndDate" style="width:160px;">
+                </div>
+                <button class="btn-simpan" onclick="hitungGajiPayroll()" style="height:38px; white-space:nowrap;">💵 Hitung Payroll</button>
+            </div>
+        </div>
+
+        <div class="salary-grid">
+
+            <div class="salary-card">
+                <h3>⚙️ Konfigurasi Standar Gaji & Bonus per Role</h3>
+                <div class="salary-form-control" style="margin-bottom:12px;">
+                    <label for="selectRoleConfig">Pilih Role Tingkat Karyawan</label>
+                    <select id="selectRoleConfig" onchange="loadSelectedRoleConfig()">
+                        <option value="Junior Staff">Junior Staff</option>
+                        <option value="Senior Staff">Senior Staff</option>
+                        <option value="Supervisor">Supervisor</option>
+                        <option value="Lead Supervisor">Lead Supervisor</option>
+                        <option value="Manager Operasional">Manager Operasional</option>
+                        <option value="Finance & Accounting">Finance & Accounting</option>
+                        <option value="HRD">HRD</option>
+                        <option value="Supply Chain & Logistics">Supply Chain & Logistics</option>
+                        <option value="Marketing">Marketing</option>
+                    </select>
+                </div>
+
+                <div class="form-group-row-three">
+                    <div class="salary-form-control">
+                        <label for="gajiWeekday">Gapok Weekday</label>
+                        <input type="number" id="gajiWeekday" placeholder="0">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="gajiWeekend">Gapok Weekend</label>
+                        <input type="number" id="gajiWeekend" placeholder="0">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="gajiBulanan">Gaji Bulanan</label>
+                        <input type="number" id="gajiBulanan" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-group-row">
+                    <div class="salary-form-control">
+                        <label for="tunjanganJabatan">Tunjangan Jabatan</label>
+                        <input type="number" id="tunjanganJabatan" placeholder="0">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="bonusHarian">Bonus Harian Staff</label>
+                        <input type="number" id="bonusHarian" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-group-row">
+                    <div class="salary-form-control">
+                        <label for="bonusMingguan">Bonus Mingguan Staff</label>
+                        <input type="number" id="bonusMingguan" placeholder="0">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="bonusBulanan">Bonus Bulanan Staff</label>
+                        <input type="number" id="bonusBulanan" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="form-group-row-three">
+                    <div class="salary-form-control">
+                        <label for="bonusHarianJabatan">Jabatan Harian</label>
+                        <input type="number" id="bonusHarianJabatan" placeholder="0">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="bonusMingguanJabatan">Jabatan Mingguan</label>
+                        <input type="number" id="bonusMingguanJabatan" placeholder="0">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="bonusBulananJabatan">Jabatan Bulanan</label>
+                        <input type="number" id="bonusBulananJabatan" placeholder="0">
+                    </div>
+                </div>
+
+                <div style="border-top:1px dashed var(--border); padding-top:12px; margin-top:12px; margin-bottom:8px;">
+                    <p style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin:0 0 8px;">🎯 Target Batas Kinerja Dinamis</p>
+                </div>
+
+                <div class="form-group-row">
+                    <div class="salary-form-control">
+                        <label for="targetOmsetHarian">Target Omset Harian</label>
+                        <input type="number" id="targetOmsetHarian" value="450000">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="targetOmsetMingguan">Target Omset Mingguan</label>
+                        <input type="number" id="targetOmsetMingguan" value="3500000">
+                    </div>
+                </div>
+
+                <div class="form-group-row">
+                    <div class="salary-form-control">
+                        <label for="targetOmsetBulanan30">Target Omset 30 Hari</label>
+                        <input type="number" id="targetOmsetBulanan30" value="15000000">
+                    </div>
+                    <div class="salary-form-control">
+                        <label_for="targetOmsetBulanan31">Target Omset 31 Hari</label_for>
+                        <input type="number" id="targetOmsetBulanan31" value="15500000">
+                    </div>
+                </div>
+
+                <div class="form-group-row">
+                    <div class="salary-form-control">
+                        <label for="targetHadirMingguan">Min. Hadir Mingguan (Hari)</label>
+                        <input type="number" id="targetHadirMingguan" value="5">
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="targetHadirBulanan">Min. Hadir Bulanan (Hari)</label>
+                        <input type="number" id="targetHadirBulanan" value="25">
+                    </div>
+                </div>
+
+                <button class="btn-simpan" onclick="saveSalaryConfig()" style="width:100%; height:38px; margin-top:12px;">💾 Simpan Konfigurasi Gaji</button>
+            </div>
+
+            <div class="salary-card">
+                <h3>👑 Hubungan Atasan - Bawahan</h3>
+                <div class="form-group-row">
+                    <div class="salary-form-control">
+                        <label for="selectAtasan">Atasan (Senior/SPV+)</label>
+                        <select id="selectAtasan"></select>
+                    </div>
+                    <div class="salary-form-control">
+                        <label for="selectBawahan">Bawahan (Staf Dipantau)</label>
+                        <select id="selectBawahan"></select>
+                    </div>
+                </div>
+                <button class="btn-simpan" onclick="simpanHubunganHierarchy()" style="width:100%; height:38px; margin-bottom:12px;">🔗 Jodohkan Atasan-Bawahan</button>
+
+                <div style="max-height: 240px; overflow-y: auto;">
+                    <table class="h-table">
+                        <thead>
+                            <tr>
+                                <th>Atasan</th>
+                                <th>Bawahan</th>
+                                <th style="width:40px; text-align:center;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hierarchyTableBody">
+                            <tr><td colspan="3" style="text-align:center; color:var(--text-light);">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="wh-card">
+            <div class="wh-card-title">📋 Hasil Perhitungan Penggajian Real-time</div>
+            <div class="wh-table-wrap">
+                <table class="wh-tbl">
+                    <thead>
+                        <tr>
+                            <th>Karyawan</th>
+                            <th>Role Karyawan</th>
+                            <th>Cabang Utama</th>
+                            <th>Masuk (Weekday/Weekend)</th>
+                            <th>Total Omset Jaga</th>
+                            <th>Total Gaji + Bonus</th>
+                            <th style="width: 100px; text-align:center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollTableBody">
+                        <tr><td class="wh-empty-td" colspan="7">Silakan pilih tanggal dan klik "Hitung Payroll" di atas.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<nav class="bottom-nav">
+    <button class="bn-item" onclick="location.href='dashboard.html'"><span class="bn-icon">🛒</span><span class="bn-label">Kasir</span></button>
+    <button class="bn-item" onclick="location.href='history.html'"><span class="bn-icon">📄</span><span class="bn-label">History</span></button>
+    <button class="bn-item" onclick="location.href='stok.html'"><span class="bn-icon">📦</span><span class="bn-label">Stok</span></button>
+    <button class="bn-item" onclick="location.href='laporan_staff.html'"><span class="bn-icon">📊</span><span class="bn-label">Laporan</span></button>
+    <button class="bn-item active" onclick="openSheet('moreSheet')"><span class="bn-icon">☰</span><span class="bn-label">Lainnya</span></button>
+</nav>
+
+<div class="sheet-overlay" id="moreSheet" onclick="closeSheetOutside(event,'moreSheet')">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <p style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Menu Lainnya</p>
+        <div class="more-grid" id="moreGrid"></div>
+    </div>
+</div>
+
+<div id="slipModal" class="sheet-overlay" style="display:none; justify-content:center; align-items:center; z-index:1100;" onclick="closeSlipModalOutside(event)">
+    <div class="wh-card" style="width:95%; max-width:550px; margin:0; padding:12px; position:relative; background:#ffffff; box-shadow: var(--sh-lg);" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:flex-end; padding:4px;">
+            <span onclick="tutupSlipModal()" style="font-size:28px; font-weight:bold; color:#d32f2f; cursor:pointer; line-height:1;">&times;</span>
+        </div>
+        
+        <div id="slipPrintArea" class="slip-container">
+            <div class="slip-header">
+                <h2>HOKI DIMSUM</h2>
+                <p>SLIP GAJI RESMI KARYAWAN (CONFIDENTIAL)</p>
+            </div>
+            
+            <div class="slip-meta">
+                <div>
+                    <div><span class="slip-meta-label">Nama Karyawan:</span> <span id="slipNamaKaryawan">—</span></div>
+                    <div><span class="slip-meta-label">Username ID:</span> <span id="slipUsername">—</span></div>
+                    <div><span class="slip-meta-label">Tingkatan Role:</span> <span id="slipRole">—</span></div>
+                </div>
+                <div>
+                    <div><span class="slip-meta-label">Cabang Utama:</span> <span id="slipCabang">—</span></div>
+                    <div><span class="slip-meta-label">Periode Slip:</span> <span id="slipPeriode">—</span></div>
+                    <div><span class="slip-meta-label">Tanggal Cetak:</span> <span id="slipTglCetak">—</span></div>
+                </div>
+            </div>
+
+            <table class="slip-table">
+                <thead>
+                    <tr>
+                        <th>Rincian Deskripsi Komponen</th>
+                        <th class="num">Nominal</th>
+                        <th class="num" style="width:50px; text-align:center;">Qty</th>
+                        <th class="num" style="width:120px;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody id="slipTbodyDetail"></tbody>
+                <tfoot>
+                    <tr class="row-total">
+                        <td colspan="3">TAKE HOME PAY (TOTAL BERSIH)</td>
+                        <td class="num" id="slipTotalTakeHome">Rp 0</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:30px; padding:0 12px;">
+                <div style="text-align:center; width:150px;">
+                    <p style="margin:0 0 50px;">Disiapkan Oleh,</p>
+                    <p style="margin:0; font-weight:700; border-top:1px solid #333; padding-top:4px;">F & A Hoki Dimsum</p>
+                </div>
+                <div style="text-align:center; width:150px;">
+                    <p style="margin:0 0 50px;">Diterima Oleh Karyawan,</p>
+                    <p style="margin:0; font-weight:700; border-top:1px solid #333; padding-top:4px;" id="slipTandaTanganName">—</p>
+                </div>
+            </div>
+
+            <div class="slip-footer">
+                <p>Terima kasih atas dedikasi dan kerja keras Anda bersama Hoki Dimsum.</p>
+                <p style="font-size:9px; margin-top:4px;">Generated automatically by Hoki POS system.</p>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:0 24px 16px;">
+            <button class="btn-pdf-slip" onclick="unduhSlipPDF()">
+                <span>📄</span> Unduh Slip PDF
+            </button>
+            <button class="btn-wa-slip" onclick="kirimWAPayroll()">
+                <span>📲</span> Kirim Slip ke WA
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ✔️ FIX UTAMA: Deklarasikan gerbang API_BASE langsung ke api.php
+const API_BASE = 'api.php';
+
+const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
+if (!currentUser.user) window.location.href = 'index.html';
+
+if (!['Owner', 'VIP'].includes(currentUser.role)) {
+    alert("Akses Ditolak! Hanya Owner/VIP yang bisa mengelola gaji staff.");
+    window.location.href = 'dashboard.html';
+}
+
+let activeSalaryConfigs = {};
+let activeHierarchy = [];
+let activeUsersList = [];
+let activeCalculatedPayroll = [];
+let currentPayrollIndex = null;
+
+/* ── SIDEBAR DYNAMIC RESTORATION ── */
+function toggleSidebar() {
+    const sb = document.getElementById('sidebar');
+    const mc = document.getElementById('mainContent');
+    sb.classList.toggle('collapsed');
+    mc.classList.toggle('expanded');
+    localStorage.setItem('sidebarState', sb.classList.contains('collapsed') ? 'small' : 'large');
+}
+
+function buildSidebar() {
+    if (localStorage.getItem('sidebarState') === 'small') {
+        document.getElementById('sidebar').classList.add('collapsed');
+        document.getElementById('mainContent').classList.add('expanded');
+    }
+    const role = currentUser.role;
+    const cur  = window.location.pathname.split('/').pop() || 'salary_staff.html';
+    const navItem = (icon, label, link) => {
+        const active = cur === link ? 'active' : '';
+        return `<button class="nav-item ${active}" onclick="location.href='${link}'">
+            <span class="nav-icon">${icon}</span>
+            <span class="nav-label">${label}</span>
+        </button>`;
+    };
+    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html'];
+    const PAGES_MGMT      = ['rekap.html','produk.html'];
+    const PAGES_EXEC      = ['laporan.html','statistik.html','bahan_baku.html','hpp_produk.html','belanja.html','warehouse.html','salary_staff.html'];
+    const PAGES_VIP       = ['user.html','login_history.html'];
+    
+    const getOpen = (id) => {
+        const s = localStorage.getItem('navGroup_' + id);
+        return s !== null ? s === '1' : true;
+    };
+    const GROUP_ICONS = { frontline:'🛒', management:'📊', executive:'📋', vip:'👑' };
+    const navGroup = (id, label, items, pages) => {
+        const open      = getOpen(id);
+        const hasActive = pages.includes(cur);
+        const icon      = GROUP_ICONS[id] || '📁';
+        return `<div class="nav-group-wrap">
+            <button class="nav-group-label${hasActive ? ' has-active' : ''}" onclick="toggleNavGroup('${id}')">
+                <span class="nav-group-icon">${icon}</span>
+                <span class="nav-group-text">${label}</span>
+                <span class="nav-group-ti">${open ? '−' : '+'}</span>
+            </button>
+            <div class="nav-group-items" id="navg-${id}"${open ? '' : ' style="display:none"'}>
+                ${items}
+            </div>
+        </div>`;
+    };
+
+    let frontline = navItem('🛒','Kasir','dashboard.html')
+        + navItem('📄','History Transaksi','history.html')
+        + navItem('📦','Stok Harian','stok.html')
+        + navItem('🚚','Restock Barang','restock.html')
+        + navItem('📊','Laporan Penjualan','laporan_staff.html');
+    let h = navGroup('frontline', 'Frontline', frontline, PAGES_FRONTLINE);
+
+    if (['Senior Staff','SPV','Owner','VIP'].includes(role)) {
+        let mgmt = navItem('📈','Rekapan Penjualan','rekap.html')
+            + navItem('🍱','Master Produk','produk.html');
+        h += navGroup('management', 'Management', mgmt, PAGES_MGMT);
+    }
+    if (['Owner','VIP'].includes(role)) {
+        let exec = navItem('📊','Keuangan Global','laporan.html')
+            + navItem('📈','Statistik','statistik.html')
+            + navItem('🧂','Bahan Baku','bahan_baku.html')
+            + navItem('💰','HPP Produk','hpp_produk.html')
+            + navItem('🏭','Warehouse','warehouse.html')
+            + navItem('💸','Belanja','belanja.html')
+            + navItem('💵','Salary Staff','salary_staff.html');
+        h += navGroup('executive', 'Executive', exec, PAGES_EXEC);
+    }
+    if (role === 'VIP') {
+        let vip = navItem('👥','Manajemen User','user.html')
+            + navItem('🔑','History Login','login_history.html');
+        h += navGroup('vip', 'VIP Access', vip, PAGES_VIP);
+    }
+    document.getElementById('sidebarNav').innerHTML = h;
+    const name = currentUser.fullName || currentUser.user || 'Owner';
+    document.getElementById('userAvatarInitial').innerText = name.charAt(0).toUpperCase();
+    document.getElementById('sidebarUserName').innerText   = name;
+    document.getElementById('sidebarUserRole').innerText   = currentUser.role || '—';
+}
+
+function toggleNavGroup(id) {
+    const items = document.getElementById('navg-' + id);
+    const btn   = items.previousElementSibling;
+    const ti    = btn.querySelector('.nav-group-ti');
+    const open  = items.style.display !== 'none';
+    items.style.display = open ? 'none' : '';
+    if (ti) ti.textContent = open ? '+' : '−';
+    localStorage.setItem('navGroup_' + id, open ? '0' : '1');
+}
+
+/* ── CLOCK ── */
+function updateClock() {
+    const now = new Date();
+    document.getElementById('realtimeClock').innerText = now.toLocaleTimeString('id-ID');
+    document.getElementById('realtimeDate').innerText  = now.toLocaleDateString('id-ID',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+}
+setInterval(updateClock, 1000);
+
+/* ── CONFIG GAJI & BONUS ROLES ── */
+async function loadGajiConfig() {
+    try {
+        const res = await fetch(`${API_BASE}?action=get_salary_config`);
+        const resData = await res.json().catch(() => []);
+        const list = Array.isArray(resData) ? resData : [];
+        activeSalaryConfigs = {};
+        list.forEach(c => { activeSalaryConfigs[c.role_name] = c; });
+        loadSelectedRoleConfig();
+    } catch(e) { console.error(e); }
+}
+
+function loadSelectedRoleConfig() {
+    const role = document.getElementById('selectRoleConfig').value;
+    const c = activeSalaryConfigs[role] || { gaji_weekday: 0, gaji_weekend: 0, gaji_bulanan: 0, tunjangan_jabatan: 0, bonus_harian: 0, bonus_mingguan: 0, bonus_bulanan: 0, bonus_harian_jabatan: 0, bonus_mingguan_jabatan: 0, bonus_bulanan_jabatan: 0, target_omset_harian: 450000, target_omset_mingguan: 3500000, target_omset_bulanan_30: 15000000, target_omset_bulanan_31: 15500000, target_hadir_mingguan: 5, target_hadir_bulanan: 25 };
+
+    document.getElementById('gajiWeekday').value = c.gaji_weekday;
+    document.getElementById('gajiWeekend').value = c.gaji_weekend;
+    document.getElementById('gajiBulanan').value = c.gaji_bulanan;
+    document.getElementById('tunjanganJabatan').value = c.tunjangan_jabatan;
+    document.getElementById('bonusHarian').value = c.bonus_harian;
+    document.getElementById('bonusMingguan').value = c.bonus_mingguan;
+    document.getElementById('bonusBulanan').value = c.bonus_bulanan;
+    document.getElementById('bonusHarianJabatan').value = c.bonus_harian_jabatan;
+    document.getElementById('bonusMingguanJabatan').value = c.bonus_mingguan_jabatan;
+    document.getElementById('bonusBulananJabatan').value = c.bonus_bulanan_jabatan;
+    document.getElementById('targetOmsetHarian').value = c.target_omset_harian;
+    document.getElementById('targetOmsetMingguan').value = c.target_omset_mingguan;
+    document.getElementById('targetOmsetBulanan30').value = c.target_omset_bulanan_30;
+    document.getElementById('targetOmsetBulanan31').value = c.target_omset_bulanan_31;
+    document.getElementById('targetHadirMingguan').value = c.target_hadir_mingguan;
+    document.getElementById('targetHadirBulanan').value = c.target_hadir_bulanan;
+}
+
+async function saveSalaryConfig() {
+    const role = document.getElementById('selectRoleConfig').value;
+    const payload = {
+        role: role,
+        gaji_weekday: parseInt(document.getElementById('gajiWeekday').value) || 0,
+        gaji_weekend: parseInt(document.getElementById('gajiWeekend').value) || 0,
+        gaji_bulanan: parseInt(document.getElementById('gajiBulanan').value) || 0,
+        tunjangan_jabatan: parseInt(document.getElementById('tunjanganJabatan').value) || 0,
+        bonus_harian: parseInt(document.getElementById('bonusHarian').value) || 0,
+        bonus_mingguan: parseInt(document.getElementById('bonusMingguan').value) || 0,
+        bonus_bulanan: parseInt(document.getElementById('bonusBulanan').value) || 0,
+        bonus_harian_jabatan: parseInt(document.getElementById('bonusHarianJabatan').value) || 0,
+        bonus_mingguan_jabatan: parseInt(document.getElementById('bonusMingguanJabatan').value) || 0,
+        bonus_bulanan_jabatan: parseInt(document.getElementById('bonusBulananJabatan').value) || 0,
+        target_omset_harian: parseInt(document.getElementById('targetOmsetHarian').value) || 450000,
+        target_omset_mingguan: parseInt(document.getElementById('targetOmsetMingguan').value) || 3500000,
+        target_omset_bulanan_30: parseInt(document.getElementById('targetOmsetBulanan30').value) || 15000000,
+        target_omset_bulanan_31: parseInt(document.getElementById('targetOmsetBulanan31').value) || 15500000,
+        target_hadir_mingguan: parseInt(document.getElementById('targetHadirMingguan').value) || 5,
+        target_hadir_bulanan: parseInt(document.getElementById('targetHadirBulanan').value) || 25
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}?action=save_salary_config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const hasil = await res.json();
+        if (hasil.status === 'success') { alert("Konfigurasi gaji " + role + " berhasil disimpan!"); loadGajiConfig(); }
+        else { alert("Gagal: " + hasil.message); }
+    } catch(e) { alert("Koneksi server gagal!"); }
+}
+
+async function loadUsersList() {
+    try {
+        const res = await fetch(`${API_BASE}?action=get_users&filter=salary`);
+        const data = await res.json().catch(() => []);
+        activeUsersList = data;
+
+        const selAtasan = document.getElementById('selectAtasan');
+        const selBawahan = document.getElementById('selectBawahan');
+        
+        selAtasan.innerHTML = '<option value="">— Pilih Atasan —</option>';
+        selBawahan.innerHTML = '<option value="">— Pilih Bawahan —</option>';
+
+        data.forEach(u => {
+            selAtasan.innerHTML += `<option value="${u.username}">${u.fullName} (${u.role})</option>`;
+            selBawahan.innerHTML += `<option value="${u.username}">${u.fullName} (${u.role})</option>`;
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function loadHierarchy() {
+    try {
+        const res = await fetch(`${API_BASE}?action=get_hierarchy`);
+        const list = await res.json().catch(() => []);
+        const tbody = document.getElementById('hierarchyTableBody');
+        
+        if (!Array.isArray(list) || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-light);">Belum ada hubungan atasan-bawahan.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(h => {
+            const atasanUser = activeUsersList.find(x => x.username === h.atasan_username);
+            const bawahanUser = activeUsersList.find(x => x.username === h.bawahan_username);
+            return `<tr><td><b>${atasanUser ? atasanUser.fullName : h.atasan_username}</b></td><td><b>${bawahanUser ? bawahanUser.fullName : h.bawahan_username}</b></td><td style="text-align:center;"><button class="btn-action-small" onclick="hapusHierarchy('${h.id}')">×</button></td></tr>`;
+        }).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function simpanHubunganHierarchy() {
+    const atasan = document.getElementById('selectAtasan').value;
+    const bawahan = document.getElementById('selectBawahan').value;
+
+    if (!atasan || !bawahan) return alert('Pilih atasan dan bawahan dulu!');
+    
+    try {
+        const res = await fetch(`${API_BASE}?action=save_hierarchy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ atasan: atasan, bawahan: bawahan }) // ✔️ MATCHED WITH BACKEND KEY
+        });
+        const hasil = await res.json();
+        if (hasil.status === 'success') { alert("Hubungan atasan-bawahan berhasil dijodohkan!"); loadHierarchy(); }
+        else { alert("Gagal: " + hasil.message); }
+    } catch(e) { alert("Koneksi gagal!"); }
+}
+
+async function hapusHierarchy(id) {
+    if (!confirm("Hapus hubungan atasan-bawahan ini?")) return;
+    try {
+        const res = await fetch(`${API_BASE}?action=del_hierarchy&id=${id}`);
+        const hasil = await res.json();
+        if (hasil.status === 'success') { loadHierarchy(); }
+    } catch(e) { alert("Gagal menghapus!"); }
+}
+
+async function hitungGajiPayroll() {
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+
+    if (!start || !end) return alert("Pilih rentang tanggal terlebih dahulu!");
+
+    const tbody = document.getElementById('payrollTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">⏳ Menghitung payroll...</td></tr>';
+
+    try {
+        const res = await fetch(`${API_BASE}?action=calculate_payroll&tgl_mulai=${start}&tgl_selesai=${end}`);
+        const list = await res.json().catch(() => []);
+        activeCalculatedPayroll = list;
+
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td class="wh-empty-td" colspan="7">Tidak ada data laporan jualan ditemukan.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map((p, idx) => `
+            <tr>
+                <td><b>${p.fullName}</b><br><small>@${p.username}</small></td>
+                <td><span class="tag-metode">${p.role}</span></td>
+                <td><b>${p.cabang || '—'}</b></td>
+                <td><b>${p.total_masuk} hari</b></td>
+                <td style="font-family:'DM Mono';">Rp ${p.total_omset.toLocaleString('id-ID')}</td>
+                <td style="font-family:'DM Mono'; font-weight:700; color:green;">Rp ${p.total_gaji.toLocaleString('id-ID')}</td>
+                <td style="text-align:center;">
+                    <button class="btn-simpan" style="padding:4px 8px; font-size:11px;" onclick="bukaSlipModal(${idx})">👁️ Slip</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Gagal memproses data payroll.</td></tr>'; }
+}
+
+function bukaSlipModal(idx) {
+    currentPayrollIndex = idx;
+    const p = activeCalculatedPayroll[idx];
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+
+    document.getElementById('slipNamaKaryawan').innerText = p.fullName;
+    document.getElementById('slipUsername').innerText = `@${p.username}`;
+    document.getElementById('slipRole').innerText = p.role;
+    document.getElementById('slipCabang').innerText = p.cabang || 'Multi-cabang';
+    document.getElementById('slipPeriode').innerText = `${start} s/d ${end}`;
+    document.getElementById('slipTglCetak').innerText = new Date().toLocaleString('id-ID');
+    document.getElementById('slipTandaTanganName').innerText = p.fullName;
+
+    const tbody = document.getElementById('slipTbodyDetail');
+    tbody.innerHTML = p.rincian.map(r => `
+        <tr>
+            <td>${r.kategori}</td>
+            <td class="num">Rp ${r.nominal.toLocaleString('id-ID')}</td>
+            <td style="text-align:center;">${r.qty}</td>
+            <td class="num">Rp ${r.subtotal.toLocaleString('id-ID')}</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('slipTotalTakeHome').innerText = `Rp ${p.total_gaji.toLocaleString('id-ID')}`;
+    document.getElementById('slipModal').style.display = 'flex';
+}
+
+function tutupSlipModal() {
+    document.getElementById('slipModal').style.display = 'none';
+}
+
+function closeSlipModalOutside(e) {
+    if (e.target === document.getElementById('slipModal')) tutupSlipModal();
+}
+
+function unduhSlipPDF() {
+    html2pdf().set({ margin: 10, filename: 'Slip_Gaji.pdf', html2canvas: { scale: 2 }, jsPDF: { format: 'a4' } }).from(document.getElementById('slipPrintArea')).save();
+}
+
+function kirimWAPayroll() {
+    const p = activeCalculatedPayroll[currentPayrollIndex];
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+    let text = `*SLIP GAJI HOKI DIMSUM*\nNama: ${p.fullName}\nPeriode: ${start} - ${end}\nTotal: Rp ${p.total_gaji.toLocaleString('id-ID')}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+window.onload = async () => {
+    buildSidebar();
+    updateClock();
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('filterStartDate').value = today;
+    document.getElementById('filterEndDate').value = today;
+
+    // Sinkronisasi data live
+    await loadUsersList();
+    await loadGajiConfig();
+    await loadHierarchy();
+};
+</script>
+</body>
+</html>

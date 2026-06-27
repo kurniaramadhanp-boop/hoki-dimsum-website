@@ -26,7 +26,13 @@ $isDev = (
     file_exists(__DIR__ . '/dev.flag')
 );
 
-if ($isDev) {
+$dbActions = [
+    'get_users', 'get_salary_config', 'save_salary_config', 
+    'get_hierarchy', 'save_hierarchy', 'del_hierarchy', 
+    'calculate_payroll'
+];
+
+if ($isDev && !in_array($action, $dbActions)) {
     // ── MODE DEV: gunakan dummy data ──────────────────
     $dummyUsers = [
         ['id'=>1,'user'=>'admin',  'pass'=>'admin',  'role'=>'VIP',          'cabang'=>'Semua',                       'fullName'=>'Administrator'],
@@ -157,13 +163,33 @@ if ($isDev) {
     exit();
 }
 
-// ── MODE PRODUCTION: konek MySQL ──────────────────────
-$conn = new mysqli("localhost", "u173485424_kurniarp", "Alpukat19#", "u173485424_hoki");
-if ($conn->connect_error) {
-    die(json_encode(["status"=>"error","message"=>"Koneksi gagal: ".$conn->connect_error]));
+// ── MODE PRODUCTION: konek MySQL (dengan Fallback Root Lokal & Try-Catch Exception) ──────────────────────
+$conn = null;
+try {
+    $conn = new mysqli("localhost", "u173485424_kurniarp", "Alpukat19#", "u173485424_hoki");
+} catch (Exception $e) {
+    try {
+        $conn = new mysqli("localhost", "root", "");
+        if ($conn && !$conn->connect_error) {
+            $conn->query("CREATE DATABASE IF NOT EXISTS u173485424_hoki");
+            $conn->select_db("u173485424_hoki");
+        }
+    } catch (Exception $e2) {
+        $conn = null;
+    }
 }
-$conn->query("SET time_zone = '+07:00'"); 
-$conn->set_charset("utf8mb4");
+
+if (!$conn || $conn->connect_error) {
+    if (!$isDev) {
+        die(json_encode(["status"=>"error","message"=>"Koneksi database gagal."]));
+    } else {
+        $conn = null;
+    }
+}
+
+if ($conn) {
+    $conn->query("SET time_zone = '+07:00'"); 
+    $conn->set_charset("utf8mb4");
 
 // ── AUTO-CREATE ESSENTIAL TABLES ──────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS users (
@@ -176,6 +202,23 @@ $conn->query("CREATE TABLE IF NOT EXISTS users (
     docs_json TEXT,
     session_token VARCHAR(255) DEFAULT ''
 )");
+
+// Seed default users jika masih kosong
+$checkUsers = $conn->query("SELECT COUNT(*) as count FROM users");
+$row = $checkUsers ? $checkUsers->fetch_assoc() : ['count' => 0];
+if ((int)$row['count'] === 0) {
+    $conn->query("INSERT INTO users (username, password, role, fullName, cabang) VALUES 
+        ('admin', 'admin', 'VIP', 'Administrator', 'Semua'),
+        ('owner', 'owner', 'Owner', 'Owner Hoki', 'Semua'),
+        ('spv1', 'spv1', 'SPV', 'Supervisor Pusat', 'Pusat'),
+        ('senior', 'senior', 'Senior Staff', 'Senior Staff', 'Pusat,Cabang A'),
+        ('staff1', 'staff1', 'Staff', 'Staff Kasir', 'Pusat,Cabang A,Cabang B')");
+} else {
+    // Kembalikan update nama asli (untuk mendeteksi nama asli dari manajemen user)
+    $conn->query("UPDATE users SET fullName = 'Supervisor Pusat' WHERE username = 'spv1' AND fullName = 'Dwi Hartono'");
+    $conn->query("UPDATE users SET fullName = 'Senior Staff' WHERE username = 'senior' AND fullName = 'Agus Prayogo'");
+    $conn->query("UPDATE users SET fullName = 'Staff Kasir' WHERE username = 'staff1' AND fullName = 'Budi Santoso'");
+}
 $conn->query("CREATE TABLE IF NOT EXISTS produk (
     id INT AUTO_INCREMENT PRIMARY KEY,
     sku VARCHAR(20) DEFAULT '',
@@ -298,6 +341,39 @@ $conn->query("CREATE TABLE IF NOT EXISTS warehouse_ledger (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
 
+$conn->query("CREATE TABLE IF NOT EXISTS hoki_salary_config (
+    role_name VARCHAR(50) UNIQUE PRIMARY KEY,
+    gaji_weekday INT DEFAULT 0,
+    gaji_weekend INT DEFAULT 0,
+    gaji_bulanan INT DEFAULT 0,
+    tunjangan_jabatan INT DEFAULT 0,
+    bonus_harian INT DEFAULT 0,
+    bonus_mingguan INT DEFAULT 0,
+    bonus_bulanan INT DEFAULT 0,
+    bonus_harian_jabatan INT DEFAULT 0,
+    bonus_mingguan_jabatan INT DEFAULT 0,
+    bonus_bulanan_jabatan INT DEFAULT 0,
+    target_omset_harian INT DEFAULT 450000,
+    target_omset_mingguan INT DEFAULT 3500000,
+    target_omset_bulanan_30 INT DEFAULT 15000000,
+    target_omset_bulanan_31 INT DEFAULT 15500000,
+    target_hadir_mingguan INT DEFAULT 5,
+    target_hadir_bulanan INT DEFAULT 25
+)");
+
+$roles_default = ['Junior Staff', 'Senior Staff', 'Supervisor', 'Lead Supervisor', 'Manager Operasional', 'Finance & Accounting', 'HRD', 'Supply Chain & Logistics', 'Marketing'];
+foreach ($roles_default as $r_def) {
+    $conn->query("INSERT IGNORE INTO hoki_salary_config (role_name) VALUES ('$r_def')");
+}
+
+$conn->query("CREATE TABLE IF NOT EXISTS hoki_staff_hierarchy (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    atasan_username VARCHAR(100) NOT NULL,
+    bawahan_username VARCHAR(100) NOT NULL,
+    UNIQUE KEY uq_hierarchy (atasan_username, bawahan_username)
+)");
+}
+
 
 switch ($action) {
 
@@ -391,7 +467,12 @@ switch ($action) {
 
     // ── USERS ─────────────────────────────────────────
     case 'get_users':
-        $res = $conn->query("SELECT * FROM users ORDER BY id DESC");
+        $filter = $_GET['filter'] ?? '';
+        if ($filter === 'salary') {
+            $res = $conn->query("SELECT username, fullName, role, cabang FROM users WHERE role != 'Owner' AND role != 'VIP' AND role != 'Investor' ORDER BY fullName ASC");
+        } else {
+            $res = $conn->query("SELECT * FROM users ORDER BY id DESC");
+        }
         echo json_encode($res ? $res->fetch_all(MYSQLI_ASSOC) : []);
         break;
 
@@ -983,6 +1064,296 @@ switch ($action) {
         $ok = $conn->query("INSERT INTO warehouse_ledger (tgl, sku, masuk, catatan) VALUES ('$tgl','$sku',$masuk,'$catatan')");
         echo json_encode($ok ? ['status'=>'success'] : ['status'=>'error','message'=>$conn->error]);
         break;
+
+
+    case 'get_salary_config':
+        header('Content-Type: application/json');
+        $res = $conn->query("SELECT * FROM hoki_salary_config ORDER BY role_name ASC");
+        $data = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+        echo json_encode(is_array($data) ? $data : []);
+        break;
+
+    case 'save_salary_config':
+        header('Content-Type: application/json');
+        $role_name = $conn->real_escape_string($input['role'] ?? '');
+        $gaji_weekday = (int)($input['gaji_weekday'] ?? 0);
+        $gaji_weekend = (int)($input['gaji_weekend'] ?? 0);
+        $gaji_bulanan = (int)($input['gaji_bulanan'] ?? 0);
+        $tunjangan_jabatan = (int)($input['tunjangan_jabatan'] ?? 0);
+        $bonus_harian = (int)($input['bonus_harian'] ?? 0);
+        $bonus_mingguan = (int)($input['bonus_mingguan'] ?? 0);
+        $bonus_bulanan = (int)($input['bonus_bulanan'] ?? 0);
+        $bonus_harian_jabatan = (int)($input['bonus_harian_jabatan'] ?? 0);
+        $bonus_mingguan_jabatan = (int)($input['bonus_mingguan_jabatan'] ?? 0);
+        $bonus_bulanan_jabatan = (int)($input['bonus_bulanan_jabatan'] ?? 0);
+        $target_omset_harian = (int)($input['target_omset_harian'] ?? 450000);
+        $target_omset_mingguan = (int)($input['target_omset_mingguan'] ?? 3500000);
+        $target_omset_bulanan_30 = (int)($input['target_omset_bulanan_30'] ?? 15000000);
+        $target_omset_bulanan_31 = (int)($input['target_omset_bulanan_31'] ?? 15500000);
+        $target_hadir_mingguan = (int)($input['target_hadir_mingguan'] ?? 5);
+        $target_hadir_bulanan = (int)($input['target_hadir_bulanan'] ?? 25);
+
+        if (empty($role_name)) { echo json_encode(['status'=>'error','message'=>'Role kosong']); break; }
+
+        $sql = "INSERT INTO hoki_salary_config (role_name, gaji_weekday, gaji_weekend, gaji_bulanan, tunjangan_jabatan, bonus_harian, bonus_mingguan, bonus_bulanan, bonus_harian_jabatan, bonus_mingguan_jabatan, bonus_bulanan_jabatan, target_omset_harian, target_omset_mingguan, target_omset_bulanan_30, target_omset_bulanan_31, target_hadir_mingguan, target_hadir_bulanan)
+                VALUES ('$role_name', $gaji_weekday, $gaji_weekend, $gaji_bulanan, $tunjangan_jabatan, $bonus_harian, $bonus_mingguan, $bonus_bulanan, $bonus_harian_jabatan, $bonus_mingguan_jabatan, $bonus_bulanan_jabatan, $target_omset_harian, $target_omset_mingguan, $target_omset_bulanan_30, $target_omset_bulanan_31, $target_hadir_mingguan, $target_hadir_bulanan)
+                ON DUPLICATE KEY UPDATE 
+                    gaji_weekday = $gaji_weekday,
+                    gaji_weekend = $gaji_weekend,
+                    gaji_bulanan = $gaji_bulanan,
+                    tunjangan_jabatan = $tunjangan_jabatan,
+                    bonus_harian = $bonus_harian,
+                    bonus_mingguan = $bonus_mingguan,
+                    bonus_bulanan = $bonus_bulanan,
+                    bonus_harian_jabatan = $bonus_harian_jabatan,
+                    bonus_mingguan_jabatan = $bonus_mingguan_jabatan,
+                    bonus_bulanan_jabatan = $bonus_bulanan_jabatan,
+                    target_omset_harian = $target_omset_harian,
+                    target_omset_mingguan = $target_omset_mingguan,
+                    target_omset_bulanan_30 = $target_omset_bulanan_30,
+                    target_omset_bulanan_31 = $target_omset_bulanan_31,
+                    target_hadir_mingguan = $target_hadir_mingguan,
+                    target_hadir_bulanan = $target_hadir_bulanan";
+        $ok = $conn->query($sql);
+        echo json_encode($ok ? ['status'=>'success'] : ['status'=>'error','message'=>$conn->error]);
+        break;
+
+    case 'get_hierarchy':
+        header('Content-Type: application/json');
+        $res = $conn->query("SELECT * FROM hoki_staff_hierarchy ORDER BY atasan_username ASC");
+        $data = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+        echo json_encode(is_array($data) ? $data : []);
+        break;
+
+    case 'save_hierarchy':
+        header('Content-Type: application/json');
+        $atasan = $conn->real_escape_string($input['atasan'] ?? '');
+        $bawahan = $conn->real_escape_string($input['bawahan'] ?? '');
+        if (empty($atasan) || empty($bawahan)) { echo json_encode(['status'=>'error','message'=>'Form tidak lengkap']); break; }
+        if ($atasan === $bawahan) { echo json_encode(['status'=>'error','message'=>'Atasan dan Bawahan tidak boleh sama']); break; }
+
+        $ok = $conn->query("INSERT IGNORE INTO hoki_staff_hierarchy (atasan_username, bawahan_username) VALUES ('$atasan', '$bawahan')");
+        echo json_encode($ok ? ['status'=>'success'] : ['status'=>'error','message'=>$conn->error]);
+        break;
+
+    case 'del_hierarchy':
+        header('Content-Type: application/json');
+        $id = (int)($_GET['id'] ?? 0);
+        $ok = $conn->query("DELETE FROM hoki_staff_hierarchy WHERE id=$id");
+        echo json_encode($ok ? ['status'=>'success'] : ['status'=>'error','message'=>$conn->error]);
+        break;
+
+    case 'calculate_payroll':
+        header('Content-Type: application/json');
+        $tgl_mulai = $conn->real_escape_string($_GET['tgl_mulai'] ?? '');
+        $tgl_selesai = $conn->real_escape_string($_GET['tgl_selesai'] ?? '');
+        if (empty($tgl_mulai) || empty($tgl_selesai)) {
+            echo json_encode(["status"=>"error","message"=>"Rentang tanggal belum dipilih."]);
+            break;
+        }
+
+        $resUsers = $conn->query("SELECT username, fullName, role, cabang FROM users WHERE role != 'Owner' AND role != 'VIP' AND role != 'Investor' ORDER BY fullName ASC");
+        $users = $resUsers ? $resUsers->fetch_all(MYSQLI_ASSOC) : [];
+
+        $resSalConfig = $conn->query("SELECT * FROM hoki_salary_config");
+        $salConfigs = [];
+        if ($resSalConfig) {
+            while ($sc = $resSalConfig->fetch_assoc()) {
+                $salConfigs[$sc['role_name']] = $sc;
+            }
+        }
+
+        $resHierarchy = $conn->query("SELECT * FROM hoki_staff_hierarchy");
+        $atasanMapping = [];
+        if ($resHierarchy) {
+            while ($h = $resHierarchy->fetch_assoc()) {
+                $atasanMapping[$h['atasan_username']][] = $h['bawahan_username'];
+            }
+        }
+
+        $resSettlement = $conn->query("SELECT waktu, petugas, cabang, grand_total, DAYOFWEEK(waktu) as dow FROM laporan_settlement WHERE waktu >= '{$tgl_mulai} 00:00:00' AND waktu <= '{$tgl_selesai} 23:59:59'");
+        $settlements = $resSettlement ? $resSettlement->fetch_all(MYSQLI_ASSOC) : [];
+
+        $omsetHarianCabang = [];
+        $kehadiranStaff = [];
+
+        foreach ($settlements as $set) {
+            $tgl = date('Y-m-d', strtotime($set['waktu']));
+            $cab = $set['cabang'];
+            $omsetHarianCabang[$tgl][$cab] = ($omsetHarianCabang[$tgl][$cab] ?? 0) + (int)$set['grand_total'];
+
+            $petugasNames = array_map('trim', preg_split('/[,&]/', $set['petugas']));
+            foreach ($users as $u) {
+                if (in_array(strtolower($u['username']), array_map('strtolower', $petugasNames)) || in_array(strtolower($u['fullName']), array_map('strtolower', $petugasNames))) {
+                    $kehadiranStaff[$u['username']][$tgl] = [
+                        'cabang' => $cab,
+                        'dow' => (int)$set['dow']
+                    ];
+                }
+            }
+        }
+
+        $payrollResults = [];
+        foreach ($users as $u) {
+            $username = $u['username'];
+            $role = $u['role'];
+            $conf = $salConfigs[$role] ?? [
+                'gaji_weekday' => 0, 'gaji_weekend' => 0, 'gaji_bulanan' => 0, 'tunjangan_jabatan' => 0,
+                'bonus_harian' => 0, 'bonus_mingguan' => 0, 'bonus_bulanan' => 0,
+                'bonus_harian_jabatan' => 0, 'bonus_mingguan_jabatan' => 0, 'bonus_bulanan_jabatan' => 0,
+                'target_omset_harian' => 450000, 'target_omset_mingguan' => 3500000,
+                'target_omset_bulanan_30' => 15000000, 'target_omset_bulanan_31' => 15500000,
+                'target_hadir_mingguan' => 5, 'target_hadir_bulanan' => 25
+            ];
+
+            $logsKehadiran = $kehadiranStaff[$username] ?? [];
+            $daysWeekday = 0;
+            $daysWeekend = 0;
+            $totalGapok = 0;
+            $totalBonusHarian = 0;
+            $rincian = [];
+
+            foreach ($logsKehadiran as $tgl => $log) {
+                if ($log['dow'] == 1 || $log['dow'] == 7) {
+                    $daysWeekend++;
+                    $totalGapok += (int)$conf['gaji_weekend'];
+                } else {
+                    $daysWeekday++;
+                    $totalGapok += (int)$conf['gaji_weekday'];
+                }
+
+                $cabOmset = $omsetHarianCabang[$tgl][$log['cabang']] ?? 0;
+                if ($cabOmset >= (int)$conf['target_omset_harian']) {
+                    $totalBonusHarian += (int)$conf['bonus_harian'];
+                }
+            }
+
+            if ($daysWeekday > 0) {
+                $rincian[] = ["kategori" => "Gaji Weekday", "nominal" => (int)$conf['gaji_weekday'], "qty" => $daysWeekday, "subtotal" => (int)$conf['gaji_weekday'] * $daysWeekday];
+            }
+            if ($daysWeekend > 0) {
+                $rincian[] = ["kategori" => "Gaji Weekend", "nominal" => (int)$conf['gaji_weekend'], "qty" => $daysWeekend, "subtotal" => (int)$conf['gaji_weekend'] * $daysWeekend];
+            }
+            if ((int)$conf['gaji_bulanan'] > 0) {
+                $rincian[] = ["kategori" => "Gaji Bulanan", "nominal" => (int)$conf['gaji_bulanan'], "qty" => 1, "subtotal" => (int)$conf['gaji_bulanan']];
+                $totalGapok += (int)$conf['gaji_bulanan'];
+            }
+            if ((int)$conf['tunjangan_jabatan'] > 0) {
+                $rincian[] = ["kategori" => "Tunjangan Jabatan", "nominal" => (int)$conf['tunjangan_jabatan'], "qty" => 1, "subtotal" => (int)$conf['tunjangan_jabatan']];
+                $totalGapok += (int)$conf['tunjangan_jabatan'];
+            }
+            if ($totalBonusHarian > 0) {
+                $rincian[] = ["kategori" => "Bonus Harian Cabang", "nominal" => (int)$conf['bonus_harian'], "qty" => $totalBonusHarian / (int)$conf['bonus_harian'], "subtotal" => $totalBonusHarian];
+            }
+
+            $totalOmsetStaff = 0;
+            foreach ($logsKehadiran as $tgl => $log) {
+                $totalOmsetStaff += ($omsetHarianCabang[$tgl][$log['cabang']] ?? 0);
+            }
+            $totalMasuk = count($logsKehadiran);
+            $winMingguan = ($totalOmsetStaff >= (int)$conf['target_omset_mingguan'] || $totalMasuk >= (int)$conf['target_hadir_mingguan']);
+            $totalBonusMingguan = $winMingguan ? (int)$conf['bonus_mingguan'] : 0;
+            if ($totalBonusMingguan > 0) {
+                $rincian[] = ["kategori" => "Bonus Mingguan", "nominal" => $totalBonusMingguan, "qty" => 1, "subtotal" => $totalBonusMingguan];
+            }
+
+            $diffDays = (strtotime($tgl_selesai) - strtotime($tgl_mulai)) / 86400 + 1;
+            $targetBulan = ($diffDays >= 31) ? (int)$conf['target_omset_bulanan_31'] : (int)$conf['target_omset_bulanan_30'];
+            $winBulanan = ($totalOmsetStaff >= $targetBulan || $totalMasuk >= (int)$conf['target_hadir_bulanan']);
+            $totalBonusBulanan = $winBulanan ? (int)$conf['bonus_bulanan'] : 0;
+            if ($totalBonusBulanan > 0) {
+                $rincian[] = ["kategori" => "Bonus Bulanan", "nominal" => $totalBonusBulanan, "qty" => 1, "subtotal" => $totalBonusBulanan];
+            }
+
+            $payrollResults[$username] = [
+                'username' => $username,
+                'fullName' => $u['fullName'],
+                'role' => $role,
+                'cabang' => $u['cabang'],
+                'days_weekday' => $daysWeekday,
+                'days_weekend' => $daysWeekend,
+                'total_masuk' => $totalMasuk,
+                'total_omset' => $totalOmsetStaff,
+                'win_bonus_harian_qty' => ($totalBonusHarian > 0 && (int)$conf['bonus_harian'] > 0) ? ($totalBonusHarian / (int)$conf['bonus_harian']) : 0,
+                'win_bonus_mingguan' => $winMingguan,
+                'win_bonus_bulanan' => $winBulanan,
+                'total_gapok' => $totalGapok,
+                'total_bonus_harian' => $totalBonusHarian,
+                'total_bonus_mingguan' => $totalBonusMingguan,
+                'total_bonus_bulanan' => $totalBonusBulanan,
+                'total_bonus_jabatan' => 0,
+                'rincian' => $rincian,
+                'total_gaji' => $totalGapok + $totalBonusHarian + $totalBonusMingguan + $totalBonusBulanan
+            ];
+        }
+
+        foreach ($payrollResults as $username => &$pData) {
+            if (isset($atasanMapping[$username])) {
+                $bawahans = $atasanMapping[$username];
+                $role = $pData['role'];
+                $conf = $salConfigs[$role] ?? [
+                    'bonus_harian_jabatan' => 0,
+                    'bonus_mingguan_jabatan' => 0,
+                    'bonus_bulanan_jabatan' => 0
+                ];
+
+                $qtyJabHarian = 0;
+                $winJabMingguan = false;
+                $winJabBulanan = false;
+
+                foreach ($bawahans as $bUser) {
+                    if (isset($payrollResults[$bUser])) {
+                        $qtyJabHarian += $payrollResults[$bUser]['win_bonus_harian_qty'];
+                        if ($payrollResults[$bUser]['win_bonus_mingguan']) {
+                            $winJabMingguan = true;
+                        }
+                        if ($payrollResults[$bUser]['win_bonus_bulanan']) {
+                            $winJabBulanan = true;
+                        }
+                    }
+                }
+
+                $bonusJabatanNominal = 0;
+                if ($qtyJabHarian > 0 && (int)$conf['bonus_harian_jabatan'] > 0) {
+                    $sub = (int)$conf['bonus_harian_jabatan'] * $qtyJabHarian;
+                    $bonusJabatanNominal += $sub;
+                    $pData['rincian'][] = [
+                        "kategori" => "Bonus Jabatan Harian (Bawahan Tembus Target)", 
+                        "nominal" => (int)$conf['bonus_harian_jabatan'], 
+                        "qty" => $qtyJabHarian, 
+                        "subtotal" => $sub
+                    ];
+                }
+                if ($winJabMingguan && (int)$conf['bonus_mingguan_jabatan'] > 0) {
+                    $sub = (int)$conn->real_escape_string($conf['bonus_mingguan_jabatan']); // safety cast
+                    $bonusJabatanNominal += $sub;
+                    $pData['rincian'][] = [
+                        "kategori" => "Bonus Jabatan Mingguan (Bawahan Tembus Target)", 
+                        "nominal" => $sub, 
+                        "qty" => 1, 
+                        "subtotal" => $sub
+                    ];
+                }
+                if ($winJabBulanan && (int)$conf['bonus_bulanan_jabatan'] > 0) {
+                    $sub = (int)$conf['bonus_bulanan_jabatan'];
+                    $bonusJabatanNominal += $sub;
+                    $pData['rincian'][] = [
+                        "kategori" => "Bonus Jabatan Bulanan (Bawahan Tembus Target)", 
+                        "nominal" => $sub, 
+                        "qty" => 1, 
+                        "subtotal" => $sub
+                    ];
+                }
+
+                $pData['total_bonus_jabatan'] = $bonusJabatanNominal;
+                $pData['total_gaji'] += $bonusJabatanNominal;
+            }
+        }
+
+        $result = is_array($payrollResults) ? array_values($payrollResults) : [];
+        echo json_encode($result);
+        break;
+
     // ─────────────────────────────────────────────────
     default:
         echo json_encode(["status"=>"error","message"=>"Action '$action' tidak dikenali."]);
