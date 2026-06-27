@@ -1445,14 +1445,14 @@ switch ($action) {
                 ];
 
                 $qtyJabHarian = 0;
-                $winJabMingguan = false;
-                $winJabBulanan = false;
+                $qtyJabMingguan = 0;
+                $qtyJabBulanan = 0;
 
                 foreach ($bawahans as $bUser) {
                     if (isset($payrollResults[$bUser])) {
                         $qtyJabHarian += $payrollResults[$bUser]['win_bonus_harian_qty'];
-                        if ($payrollResults[$bUser]['win_bonus_mingguan']) { $winJabMingguan = true; }
-                        if ($payrollResults[$bUser]['win_bonus_bulanan']) { $winJabBulanan = true; }
+                        if ($payrollResults[$bUser]['win_bonus_mingguan']) { $qtyJabMingguan++; }
+                        if ($payrollResults[$bUser]['win_bonus_bulanan']) { $qtyJabBulanan++; }
                     }
                 }
 
@@ -1462,15 +1462,15 @@ switch ($action) {
                     $bonusJabatanNominal += $sub;
                     $pData['rincian'][] = ["kategori" => "Bonus Jabatan Harian (Bawahan Tembus)", "nominal" => (int)$conf['bonus_harian_jabatan'], "qty" => $qtyJabHarian, "subtotal" => $sub];
                 }
-                if ($winJabMingguan && (int)$conf['bonus_mingguan_jabatan'] > 0) {
-                    $sub = (int)$conf['bonus_mingguan_jabatan'];
+                if ($qtyJabMingguan > 0 && (int)$conf['bonus_mingguan_jabatan'] > 0) {
+                    $sub = (int)$conf['bonus_mingguan_jabatan'] * $qtyJabMingguan;
                     $bonusJabatanNominal += $sub;
-                    $pData['rincian'][] = ["kategori" => "Bonus Jabatan Mingguan (Bawahan Tembus)", "nominal" => $sub, "qty" => 1, "subtotal" => $sub];
+                    $pData['rincian'][] = ["kategori" => "Bonus Jabatan Mingguan (Bawahan Tembus)", "nominal" => (int)$conf['bonus_mingguan_jabatan'], "qty" => $qtyJabMingguan, "subtotal" => $sub];
                 }
-                if ($winJabBulanan && (int)$conf['bonus_bulanan_jabatan'] > 0) {
-                    $sub = (int)$conf['bonus_bulanan_jabatan'];
+                if ($qtyJabBulanan > 0 && (int)$conf['bonus_bulanan_jabatan'] > 0) {
+                    $sub = (int)$conf['bonus_bulanan_jabatan'] * $qtyJabBulanan;
                     $bonusJabatanNominal += $sub;
-                    $pData['rincian'][] = ["kategori" => "Bonus Jabatan Bulanan (Bawahan Tembus)", "nominal" => $sub, "qty" => 1, "subtotal" => $sub];
+                    $pData['rincian'][] = ["kategori" => "Bonus Jabatan Bulanan (Bawahan Tembus)", "nominal" => (int)$conf['bonus_bulanan_jabatan'], "qty" => $qtyJabBulanan, "subtotal" => $sub];
                 }
 
                 $pData['total_bonus_jabatan'] = $bonusJabatanNominal;
