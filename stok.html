@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -465,6 +465,7 @@
         .ib-item { padding: 0; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -637,8 +638,8 @@
         <button class="btn-save-edit" onclick="simpanEditDetail()">💾 Simpan Perubahan</button>
 
         <!-- Tombol WA Restock -->
-        <button class="btn-wa-restock" onclick="kirimWARestock()">
-            <span>📲</span> Kirim WA Restock
+        <button class="btn-wa-restock" onclick="kirimWALaporanStok()">
+            <span>📲</span> Kirim WA
         </button>
     </div>
 </div>
@@ -810,7 +811,7 @@ function initMasterAccess() {
 async function tambahMasterItem() {
     const nama = document.getElementById('newMasterItem').value.trim();
     if (!nama) return toast.warning('Isi nama barang!');
-    await fetch('api.php?action=save_master_stok', {
+    await fetch(`${API_BASE}?action=save_master_stok`, {
         method: 'POST',
         body:   JSON.stringify({ nama })
     });
@@ -821,7 +822,7 @@ async function tambahMasterItem() {
 
 async function renderMaster() {
     try {
-        const res    = await fetch('api.php?action=get_master_stok');
+        const res    = await fetch(`${API_BASE}?action=get_master_stok`);
         const master = await res.json();
         const list     = document.getElementById('listMasterItem');
         const dropdown = document.getElementById('dropdownBarang');
@@ -853,20 +854,50 @@ async function renderMaster() {
 async function hapusMaster(id) {
     const ok = await showConfirm('Hapus barang ini dari Master?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
-    await fetch(`api.php?action=del_master_stok&id=${id}`);
+    await fetch(`${API_BASE}?action=del_master_stok&id=${id}`);
     toast.success('Barang dihapus!');
     renderMaster();
 }
 
 /* ── DRAFT ── */
 function tambahKeDraft() {
-    const item = selectedBarangNama;
-    const qty  = document.getElementById('qtyItemLaporan').value;
-    if (!item) return toast.warning('Pilih barang dulu!');
-    if (!qty)  return toast.warning('Isi jumlah!');
-    draftItem.push({ item, qty });
-    document.getElementById('qtyItemLaporan').value = '';
+    const isPekapuran = cabangAktif.toLowerCase().includes('pekapuran');
+
+    if (isPekapuran) {
+        // LOGIKA PEKAPURAN (Semua barang di list masuk ke daftar)
+        const rows = document.querySelectorAll('.pkp-qty');
+        draftItem = []; // Reset draft agar mencerminkan kondisi list saat ini
+
+        rows.forEach(input => {
+            // Jika input kosong atau bukan angka, otomatis jadi 0
+            let qty = parseInt(input.value);
+            if (isNaN(qty)) qty = 0; 
+            
+            const nama = input.getAttribute('data-nama'); 
+            draftItem.push({ item: nama, qty: qty });
+        });
+        
+    } else {
+        // LOGIKA NORMAL (Cabang lain via Dropdown)
+        const item = selectedBarangNama;
+        let qty = parseInt(document.getElementById('qtyItemLaporan').value);
+        
+        if (isNaN(qty)) qty = 0; // Default 0 jika kosong
+        if (!item) return toast.warning('Pilih barang terlebih dahulu!');
+
+        // Cek jika barang sudah ada di draft
+        const existing = draftItem.find(d => d.item === item);
+        if (existing) {
+            existing.qty = qty; // Update dengan nilai terbaru (termasuk 0)
+        } else {
+            draftItem.push({ item, qty });
+        }
+        
+        document.getElementById('qtyItemLaporan').value = '';
+    }
+
     renderDraft();
+    toast.success('Daftar stok berhasil diperbarui!');
 }
 
 function renderDraft() {
@@ -893,7 +924,7 @@ async function simpanLaporanFinal() {
     };
 
     try {
-        const res   = await fetch('api.php?action=save_laporan_stok', {
+        const res   = await fetch(`${API_BASE}?action=save_laporan_stok`, {
             method: 'POST',
             body:   JSON.stringify(reportData)
         });
@@ -914,7 +945,7 @@ async function simpanLaporanFinal() {
 /* ── HISTORY STOK ── */
 async function renderHistoryStok() {
     try {
-        const url = `api.php?action=get_laporan_stok&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang || '')}`;
+        const url = `${API_BASE}?action=get_laporan_stok&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang || '')}`;
         const res = await fetch(url);
         historyStokCloud = await res.json();
         const tbody = document.getElementById('tabelHistoryStok');
@@ -945,7 +976,7 @@ async function hapusLaporan(id) {
     const ok = await showConfirm('Hapus laporan ini secara permanen?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_laporan_stok&id=${id}`);
+        await fetch(`${API_BASE}?action=del_laporan_stok&id=${id}`);
         toast.success('Laporan berhasil dihapus!');
         renderHistoryStok();
     } catch(e) {
@@ -997,7 +1028,7 @@ async function simpanEditDetail() {
     };
 
     try {
-        const res = await fetch('api.php?action=save_laporan_stok', {
+        const res = await fetch(`${API_BASE}?action=save_laporan_stok`, {
             method: 'POST',
             body:   JSON.stringify(updated)
         });
@@ -1014,27 +1045,35 @@ async function simpanEditDetail() {
     }
 }
 
-function kirimWARestock() {
+function kirimWALaporanStok() {
     if (!currentDetailData) return;
     const items = JSON.parse(currentDetailData.items_json || '[]');
-    const tgl   = new Date(currentDetailData.waktu).toLocaleDateString('id-ID');
-
-    let txt = `*🔄 RESTOCK REQUEST*\n`;
-    txt += `Cabang: ${currentDetailData.cabang}\n`;
-    txt += `Petugas: ${currentDetailData.petugas}\n`;
-    txt += `Tanggal: ${tgl}\n`;
-    txt += `ID: ${currentDetailData.report_id}\n`;
-    txt += `------------------\n`;
+    
+    // Mengatur Format Tanggal Indonesia (Contoh: Minggu, 03 Mei 2026 | 12.49 WIB)
+    const tglObj = new Date(currentDetailData.waktu);
+    const options = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
+    const tglIndo = tglObj.toLocaleDateString('id-ID', options);
+    const jamIndo = tglObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+    
+    let txt = `🚚 *LAPORAN PENGAMBILAN STOK*\n`;
+    txt += `*TANGGAL* : ${tglIndo} | ${jamIndo} WIB\n`;
+    txt += `*NAMA* : ${currentDetailData.petugas}\n`;
+    txt += `*CABANG* : ${currentDetailData.cabang}\n`;
+    txt += `--------------------------------\n`;
+    txt += `🥟 *RINCIAN BARANG* :\n`;
+    
     items.forEach(it => {
+        // Mengambil Qty dari input (antisipasi jika ada perubahan angka sebelum tombol diklik)
         const qtyEdit = document.getElementById(`detQty_${items.indexOf(it)}`);
         const qty = qtyEdit ? qtyEdit.value : it.qty;
-        txt += `• ${it.item}: ${qty}\n`;
+        txt += `* ${it.item}: ${qty}\n`;
     });
-    txt += `------------------\n_Dikirim via Hoki POS_`;
+    
+    txt += `--------------------------------\n`;
+    txt += `✅ _Laporan via Web Pos-Kasir Hoki Dimsum_`;
 
-    // Ganti dengan nomor WA yang sesuai
-    const nomor = '6281234567890';
-    window.open(`https://wa.me/${nomor}?text=${encodeURIComponent(txt)}`, '_blank');
+    // Menggunakan Solusi 1: Bebas pilih kontak WhatsApp
+    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
 }
 
 function tutupDetail() {
@@ -1070,7 +1109,7 @@ function initModeInput(master) {
             const nama = m.nama_item || m.nama || '';
             return `<div class="pkp-row">
                 <span class="pkp-nama">${nama}</span>
-                <input type="number" class="pkp-qty" id="pkpQty_${i}" data-nama="${nama}" placeholder="0" min="0">
+                <input type="number" class="pkp-qty" id="pkpQty_${i}" data-nama="${nama}" value="0" min="0">
             </div>`;
         }).join('');
     } else {
@@ -1078,24 +1117,6 @@ function initModeInput(master) {
         document.getElementById('modePekapuran').style.display = 'none';
     }
 }
-
-// Override tambahKeDraft untuk mode Pekapuran
-const _origTambahKeDraft = tambahKeDraft;
-window.tambahKeDraftWrapped = function() {
-    const isPekapuran = cabangAktif.toLowerCase().includes('pekapuran');
-    if (isPekapuran) {
-        const rows = document.querySelectorAll('.pkp-qty');
-        draftItem = [];
-        rows.forEach(input => {
-            const qty = parseInt(input.value);
-            if (qty > 0) draftItem.push({ item: input.dataset.nama, qty });
-        });
-        if (draftItem.length === 0) return toast.warning('Isi minimal 1 barang!');
-        renderDraft();
-    } else {
-        _origTambahKeDraft();
-    }
-};
 
 window.onload = function() {
     buildSidebar();

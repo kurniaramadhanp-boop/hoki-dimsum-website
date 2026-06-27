@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -115,6 +115,7 @@
         .grid-form button { grid-column: span 2; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -367,7 +368,7 @@ function hitungHargaSatuan() {
 
 async function muatBahan() {
     try {
-        const res = await fetch('api.php?action=get_bahan_baku');
+        const res = await fetch(`${API_BASE}?action=get_bahan_baku`);
         allBahan  = await res.json();
         renderTabel();
     } catch(e) { console.error(e); }
@@ -420,7 +421,7 @@ async function simpanBahan() {
     const payload = { id: editId, nama, harga, banyak, satuan, harga_satuan };
 
     try {
-        const res   = await fetch('api.php?action=save_bahan_baku', {
+        const res   = await fetch(`${API_BASE}?action=save_bahan_baku`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(payload)
@@ -442,7 +443,7 @@ async function hapusBahan(id) {
     const ok = await showConfirm('Hapus bahan ini?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_bahan_baku&id=${id}`);
+        await fetch(`${API_BASE}?action=del_bahan_baku&id=${id}`);
         toast.success('Bahan dihapus!');
         muatBahan();
     } catch(e) { toast.error('Gagal menghapus!'); }

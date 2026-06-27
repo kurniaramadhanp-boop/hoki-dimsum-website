@@ -218,6 +218,7 @@
         .stat-card { break-inside: avoid; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -280,6 +281,8 @@
                     <div class="jenis-wrap">
                         <div class="custom-select-wrap" id="wrapJenis">
                             <button class="custom-select-btn" onclick="toggleDropdown('wrapJenis')">
+                                <!-- TAMBAHKAN SPAN ICON DI BAWAH INI -->
+                                <span id="iconJenis">📂</span> 
                                 <span id="labelJenis">Pilih Jenis</span>
                                 <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1l5 5 5-5" stroke="#d32f2f" stroke-width="1.5" stroke-linecap="round"/></svg>
                             </button>
@@ -302,6 +305,8 @@
                     <label for="wrapMode">Credit / Debit</label>
                     <div class="custom-select-wrap" id="wrapMode">
                         <button class="custom-select-btn" onclick="toggleDropdown('wrapMode')">
+                            <!-- TAMBAHKAN SPAN ICON DI BAWAH INI -->
+                            <span id="iconMode">💰</span> 
                             <span id="labelMode">Pemasukan (Credit)</span>
                             <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1l5 5 5-5" stroke="#d32f2f" stroke-width="1.5" stroke-linecap="round"/></svg>
                         </button>
@@ -331,11 +336,13 @@
         <div class="grid-stats">
             <div class="stat-card credit">
                 <h3>Total Credit (Masuk)</h3>
-                <p id="totalDebit" style="color:var(--green);">Rp 0</p>
+                <!-- Ganti ID jadi totalCredit -->
+                <p id="totalCredit" style="color:var(--green);">Rp 0</p>
             </div>
             <div class="stat-card debit">
                 <h3>Total Debit (Keluar)</h3>
-                <p id="totalCredit" style="color:var(--red);">Rp 0</p>
+                <!-- Ganti ID jadi totalDebit -->
+                <p id="totalDebit" style="color:var(--red);">Rp 0</p>
             </div>
             <div class="stat-card saldo">
                 <h3>Saldo Bersih</h3>
@@ -363,10 +370,13 @@
                     <label for="wrapFJenis">Pilih Jenis</label>
                     <div class="custom-select-wrap" id="wrapFJenis" style="margin-bottom:0;">
                         <button class="custom-select-btn" onclick="toggleDropdown('wrapFJenis')" style="border-radius:var(--r-md);">
+                            <!-- TAMBAHKAN SPAN ICON DI BAWAH INI -->
+                            <span id="iconFJenis">📂</span>
                             <span id="labelFJenis">Semua Jenis</span>
                             <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1l5 5 5-5" stroke="#d32f2f" stroke-width="1.5" stroke-linecap="round"/></svg>
                         </button>
                         <div class="custom-dropdown" id="dropdownFJenis">
+                            <!-- Nilai ini akan diisi lewat JS muatTabel -->
                             <div class="dropdown-item active" onclick="pilihFJenis('','📂','Semua Jenis',this)"><span>Semua Jenis</span></div>
                         </div>
                         <input type="hidden" id="filterJenis" value="">
@@ -380,6 +390,8 @@
                     <label for="wrapFMode">Mode (In/Out)</label>
                     <div class="custom-select-wrap" id="wrapFMode" style="margin-bottom:0;">
                         <button class="custom-select-btn" onclick="toggleDropdown('wrapFMode')" style="border-radius:var(--r-md);">
+                            <!-- TAMBAHKAN BARIS DI BAWAH INI -->
+                            <span id="iconFMode">🔄</span> 
                             <span id="labelFMode">Semua</span>
                             <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1l5 5 5-5" stroke="#d32f2f" stroke-width="1.5" stroke-linecap="round"/></svg>
                         </button>
@@ -596,11 +608,17 @@ function pilihJenis(value, icon, label, el) {
 }
 
 function pilihMode(value, icon, label, el) {
+    // Set nilai ke input hidden
     document.getElementById('fMode').value = value;
+    // Ubah icon dan label di tombol
     document.getElementById('iconMode').innerText = icon;
     document.getElementById('labelMode').innerText = label;
+    
+    // Atur class active pada item yang dipilih
     document.querySelectorAll('#dropdownMode .dropdown-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
+    
+    // Tutup dropdown
     document.getElementById('wrapMode').classList.remove('open');
 }
 
@@ -642,7 +660,7 @@ async function initForm() {
 
 async function muatJenis() {
     try {
-        const res      = await fetch('api.php?action=get_kas_jenis');
+        const res      = await fetch(`${API_BASE}?action=get_kas_jenis`);
         const types    = await res.json();
         const dropdown = document.getElementById('dropdownJenis');
         dropdown.innerHTML = '';
@@ -669,7 +687,7 @@ async function manageJenis() {
     if (ok) {
         const baru = prompt("Masukkan nama jenis baru:");
         if (baru) {
-            await fetch('api.php?action=save_kas_jenis', {
+            await fetch(`${API_BASE}?action=save_kas_jenis`, {
                 method: 'POST',
                 body: JSON.stringify({ nama: baru })
             });
@@ -678,7 +696,7 @@ async function manageJenis() {
     } else {
         const konfirm = await showConfirm(`Hapus jenis '${target}'?`, 'Ya, Hapus', 'Batal', '🗑️');
         if (konfirm) {
-            await fetch(`api.php?action=del_kas_jenis&nama=${encodeURIComponent(target)}`);
+            await fetch(`${API_BASE}?action=del_kas_jenis&nama=${encodeURIComponent(target)}`);
             toast.success('Jenis berhasil dihapus!');
         }
     }
@@ -708,7 +726,7 @@ async function simpanTransaksi() {
     };
     if (!payload.nama || !payload.nominal) return toast.warning('Nama transaksi dan Nominal wajib diisi!');
     try {
-        const res   = await fetch('api.php?action=save_kas_data', {
+        const res   = await fetch(`${API_BASE}?action=save_kas_data`, {
             method: 'POST',
             body:   JSON.stringify(payload)
         });
@@ -730,7 +748,7 @@ let cacheDataKas = [];
 async function muatTabel() {
     try {
         if (cacheDataKas.length === 0) {
-            const url = `api.php?action=get_kas_data&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`;
+            const url = `${API_BASE}?action=get_kas_data&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`;
             const res = await fetch(url);
             cacheDataKas = await res.json();
         }
@@ -744,7 +762,11 @@ async function muatTabel() {
         const fKet     = document.getElementById('filterKet').value.toLowerCase();
 
         const filtered = cacheDataKas.filter(d => {
-            const tgl = d.waktu.split(' ')[0] || d.waktu.split('T')[0];
+            // ✅ Fix Bug 3: robust parsing tanggal (support format spasi ' ' dan ISO 'T')
+            const rawTgl = d.waktu || '';
+            const tgl = rawTgl.includes('T')
+                ? rawTgl.split('T')[0]
+                : rawTgl.split(' ')[0];
             return (!fMulai   || tgl >= fMulai) &&
                    (!fSelesai || tgl <= fSelesai) &&
                    (!fUser    || d.user.toLowerCase().includes(fUser)) &&
@@ -759,7 +781,9 @@ async function muatTabel() {
         tbody.innerHTML = '';
 
         filtered.forEach(d => {
-            const nom   = parseInt(d.nominal || 0);
+            // nominal = total harga yang diinput (BUKAN harga satuan × qty)
+            // qty hanya kolom keterangan (misal: 5 kg, 3 lusin), tidak dipakai sebagai multiplier
+            const nom = parseInt(d.nominal || 0, 10);
             if (d.mode === 'Credit') credit += nom;
             else debit += nom;
 
@@ -777,13 +801,19 @@ async function muatTabel() {
                     <td><span class="${badge}">${d.mode}</span></td>
                     <td style="font-family:'DM Mono',monospace;font-weight:700;color:${color};">${sign} Rp ${nom.toLocaleString()}</td>
                     <td><small style="color:var(--text-muted);">${d.ket || '-'}</small></td>
-                    <td><button class="btn-del-kas" onclick="hapusKas(${d.id})">✖</button></td>
+                    <td>${currentUser.role === 'VIP' ? `<button class="btn-del-kas" onclick="hapusKas(${d.id})">✖</button>` : '—'}</td>
                 </tr>`;
         });
 
-        document.getElementById('totalDebit').innerText  = `Rp ${debit.toLocaleString()}`;
-        document.getElementById('totalCredit').innerText = `Rp ${credit.toLocaleString()}`;
-        document.getElementById('totalNet').innerText    = `Rp ${(credit - debit).toLocaleString()}`;
+        // ✅ Fix Bug 4: helper format angka konsisten (negatif tetap rapi)
+        const formatRp = (val) => {
+            const abs = Math.abs(val).toLocaleString('id-ID');
+            return val < 0 ? `- Rp ${abs}` : `Rp ${abs}`;
+        };
+
+        document.getElementById('totalCredit').innerText = formatRp(credit);
+        document.getElementById('totalDebit').innerText  = formatRp(debit);
+        document.getElementById('totalNet').innerText    = formatRp(credit - debit);
         updateDropdownJenisFilter();
         await muatSaran(cacheDataKas);
     } catch (e) { console.error("Gagal muat data cloud"); }
@@ -812,10 +842,17 @@ function updateDropdownJenisFilter() {
 }
 
 async function hapusKas(id) {
+    // ── GUARD: hanya role VIP yang boleh hapus ──
+    if (currentUser.role !== 'VIP') {
+        toast.error('Akses ditolak! Hanya VIP yang dapat menghapus catatan.');
+        return;
+    }
     const ok = await showConfirm('Hapus catatan ini secara permanen?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_kas_data&id=${id}`);
+        const token = localStorage.getItem('sessionToken') || '';
+        const user  = currentUser.user || '';
+        await fetch(`${API_BASE}?action=del_kas_data&id=${id}&token=${encodeURIComponent(token)}&user=${encodeURIComponent(user)}`);
         toast.success('Catatan berhasil dihapus!');
         refreshDataCloud();
     } catch (e) {

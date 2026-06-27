@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -103,6 +103,7 @@
     }
 
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -373,7 +374,7 @@ function closeSheetOutside(e,id) { if(e.target===document.getElementById(id)) do
 /* ── LOAD FILTER CABANG — otomatis sesuai akun ── */
 async function loadFilterCabang() {
     try {
-        const res        = await fetch('api.php?action=get_branches');
+        const res        = await fetch(`${API_BASE}?action=get_branches`);
         const dataCabang = await res.json();
         const container  = document.getElementById('containerCabang');
         container.innerHTML = '';
@@ -415,8 +416,8 @@ async function hitungRekapan() {
     try {
         // Ambil laporan settlement + master produk
         const [resLap, resProd] = await Promise.all([
-            fetch(`api.php?action=get_laporan_history&role=${role}&cabang=${encodeURIComponent(currentUser.cabang||'')}`),
-            masterProdukCache.length ? Promise.resolve({json:()=>masterProdukCache}) : fetch('api.php?action=get_produk')
+            fetch(`${API_BASE}?action=get_laporan_history&role=${role}&cabang=${encodeURIComponent(currentUser.cabang||'')}`),
+            masterProdukCache.length ? Promise.resolve({json:()=>masterProdukCache}) : fetch(`${API_BASE}?action=get_produk`)
         ]);
 
         const allReports = await resLap.json();
@@ -449,7 +450,7 @@ async function hitungRekapan() {
         });
 
         // Ambil menu terjual dari transaksi langsung (lebih akurat)
-        const resTrx = await fetch('api.php?action=get_history');
+        const resTrx = await fetch(`${API_BASE}?action=get_history`);
         const transaksi = await resTrx.json();
 
         transaksi.forEach(t => {

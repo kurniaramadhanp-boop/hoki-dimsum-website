@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -223,6 +223,7 @@
     }
 
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -553,7 +554,7 @@ document.addEventListener('click', function(e) {
 
 /* ── LOGIKA CLOUD (TIDAK BERUBAH) ── */
 async function renderCabang() {
-    const res     = await fetch('api.php?action=get_cabang');
+    const res     = await fetch(`${API_BASE}?action=get_cabang`);
     const cabang  = await res.json();
     const tbody   = document.querySelector('#tabelCabang tbody');
     const ceklis  = document.getElementById('containerCeklis');
@@ -572,7 +573,7 @@ async function renderCabang() {
 async function tambahCabang() {
     const nama = document.getElementById('namaCabang').value.trim();
     if (!nama) return toast.warning('Isi nama cabang!');
-    await fetch('api.php?action=save_cabang', { method: 'POST', body: JSON.stringify({ nama }) });
+    await fetch(`${API_BASE}?action=save_cabang`, { method: 'POST', body: JSON.stringify({ nama }) });
     document.getElementById('namaCabang').value = '';
     toast.success('Cabang berhasil ditambahkan!');
     renderCabang();
@@ -581,13 +582,13 @@ async function tambahCabang() {
 async function hapusCabang(id) {
     const ok = await showConfirm('Hapus cabang ini?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
-    await fetch(`api.php?action=del_cabang&id=${id}`);
+    await fetch(`${API_BASE}?action=del_cabang&id=${id}`);
     toast.success('Cabang berhasil dihapus!');
     renderCabang();
 }
 
 async function renderRole() {
-    const res      = await fetch('api.php?action=get_roles');
+    const res      = await fetch(`${API_BASE}?action=get_roles`);
     const roles    = await res.json();
     const tbody    = document.querySelector('#tabelRole tbody');
     const dropdown = document.getElementById('dropdownRole');
@@ -610,7 +611,7 @@ async function renderRole() {
 async function tambahRole() {
     const nama = document.getElementById('namaRole').value.trim();
     if (!nama) return toast.warning('Isi nama role!');
-    await fetch('api.php?action=save_role', { method: 'POST', body: JSON.stringify({ nama }) });
+    await fetch(`${API_BASE}?action=save_role`, { method: 'POST', body: JSON.stringify({ nama }) });
     document.getElementById('namaRole').value = '';
     toast.success('Role berhasil ditambahkan!');
     renderRole();
@@ -620,7 +621,7 @@ async function hapusRole(id, nama) {
     if (nama === 'Owner') return toast.error('Role Owner tidak bisa dihapus!');
     const ok = await showConfirm(`Hapus role '${nama}'?`, 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
-    await fetch(`api.php?action=del_role&id=${id}`);
+    await fetch(`${API_BASE}?action=del_role&id=${id}`);
     toast.success('Role berhasil dihapus!');
     renderRole();
 }
@@ -641,7 +642,7 @@ async function tambahUser() {
     const dataUser = { fullName, username: u, pass: p, role: r, cabang: aks, docs: { ktp, kk, spk } };
 
     try {
-        const res   = await fetch('api.php?action=save_user', {
+        const res   = await fetch(`${API_BASE}?action=save_user`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(dataUser)
@@ -659,7 +660,7 @@ async function tambahUser() {
 }
 
 async function renderUser() {
-    const res   = await fetch('api.php?action=get_users');
+    const res   = await fetch(`${API_BASE}?action=get_users`);
     const users = await res.json();
     window.allUsersData = users;
 
@@ -722,7 +723,7 @@ async function simpanEditCabang() {
     const cabang = Array.from(document.querySelectorAll('input[name="editCabangAkses"]:checked'))
         .map(c => c.value).join(',');
     try {
-        const res   = await fetch('api.php?action=update_user_cabang', {
+        const res   = await fetch(`${API_BASE}?action=update_user_cabang`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ id: editUserId, cabang })
@@ -766,7 +767,7 @@ async function hapusUser(id) {
     const ok = await showConfirm('Hapus akun ini secara permanen?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_user&id=${id}`);
+        await fetch(`${API_BASE}?action=del_user&id=${id}`);
         toast.success('Akun berhasil dihapus!');
         renderUser();
     } catch (e) {

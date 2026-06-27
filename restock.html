@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -255,43 +255,79 @@
 
     /* ── DETAIL OVERLAY ── */
     #detailOverlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(244,244,239,0.96);
+        background: rgba(0,0,0,0.5); /* Overlay agak gelap transparan */
         backdrop-filter: blur(4px);
-        z-index: 2000;
         display: none;
-        padding: 40px;
-        box-sizing: border-box;
-        overflow-y: auto;
+        align-items: center; /* Pusatkan vertikal */
     }
-
+    
     .detail-container {
-        max-width: 560px;
-        margin: auto;
-        background: var(--surface);
+        max-width: 520px;
+        border-radius: var(--r-xl); /* Sudut sangat bulat */
         padding: 28px;
-        border-radius: var(--r-xl);
-        box-shadow: var(--sh-lg);
-        border: 1px solid var(--border);
+        background: var(--surface);
     }
-
-    .detail-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-    }
-
+    
+    /* Box Informasi (Petugas, Tgl, Cabang) */
     .detail-meta {
         display: flex;
-        justify-content: space-between;
-        margin-bottom: 16px;
-        font-size: 13px;
+        gap: 16px;
+        background: var(--bg); /* Warna abu-abu halus */
+        border-radius: var(--r-md);
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border: 1px solid var(--border);
+    }
+    
+    .detail-meta-item { flex: 1; }
+    
+    .detail-meta-label {
+        font-size: 9px;
+        font-weight: 700;
         color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 2px;
+    }
+    
+    .detail-meta-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+    }
+    
+    /* List Barang dalam Detail */
+    .det-item-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .det-item-row:last-child { border-bottom: none; }
+    
+    .det-item-name { font-size: 14px; color: var(--text); font-weight: 500; }
+    
+    .det-item-qty-box {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--r-md);
+        padding: 6px 16px;
+        font-size: 14px;
+        font-weight: 700;
+        font-family: 'DM Mono', monospace;
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    .section-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin: 20px 0 10px;
     }
 
     /* ── EMPTY STATE ── */
@@ -382,6 +418,7 @@
         .ib-item { padding: 0; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -509,28 +546,35 @@
 </div>
 
 <!-- DETAIL OVERLAY -->
-<div id="detailOverlay">
+<div id="detailOverlay" onclick="tutupDetailOutside(event)">
     <div class="detail-container">
-        <div class="detail-actions">
+        <div class="detail-actions" style="margin-bottom: 20px;">
             <button class="btn-back" onclick="tutupDetail()">← Kembali</button>
-            <button class="btn-wa" id="btnKirimWA">📲 Kirim ke WA</button>
+            <button class="btn-wa" id="btnKirimWA" style="background:var(--surface); border:1px solid var(--border); color:var(--text); font-weight:600;">📲 Kirim WA</button>
         </div>
-        <h2 id="detID" style="margin:0 0 4px;color:var(--red);font-size:16px;">ID: RSTK-000</h2>
-        <p id="detWaktu" style="color:var(--text-muted);font-size:13px;margin-bottom:16px;"></p>
-        <hr>
-        <div class="detail-meta" style="margin-top:14px;">
-            <span><b>Petugas:</b> <span id="detUser"></span></span>
-            <span><b>Cabang:</b> <span id="detCabang"></span></span>
+
+        <h2 id="detID" style="margin:0 0 16px; color:var(--red); font-size:18px; font-family:'DM Sans', sans-serif;"></h2>
+
+        <!-- Meta Info Card (Sesuai Gambar) -->
+        <div class="detail-meta">
+            <div class="detail-meta-item">
+                <div class="detail-meta-label">👤 Petugas</div>
+                <div class="detail-meta-value" id="detUser">—</div>
+            </div>
+            <div class="detail-meta-item">
+                <div class="detail-meta-label">📅 Tanggal</div>
+                <div class="detail-meta-value" id="detWaktu">—</div>
+            </div>
+            <div class="detail-meta-item">
+                <div class="detail-meta-label">📍 Cabang</div>
+                <div class="detail-meta-value" id="detCabang">—</div>
+            </div>
         </div>
-        <table style="width:100%;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;border-collapse:collapse;">
-            <thead>
-                <tr>
-                    <th style="background:var(--red);color:white;padding:8px 12px;font-size:11px;text-align:left;font-weight:700;text-transform:uppercase;border:none;">Nama Material</th>
-                    <th style="background:var(--red);color:white;padding:8px 12px;font-size:11px;text-align:left;font-weight:700;text-transform:uppercase;border:none;">Qty</th>
-                </tr>
-            </thead>
-            <tbody id="detTabelItems"></tbody>
-        </table>
+
+        <p class="section-label">Daftar Barang Restock</p>
+        <div id="detListItems">
+            <!-- Rincian barang akan muncul di sini via JS -->
+        </div>
     </div>
 </div>
 
@@ -696,7 +740,7 @@ document.addEventListener('click', function(e) {
 /* ── LOGIKA RESTOCK (TIDAK BERUBAH) ── */
 async function renderMasterSync() {
     try {
-        const res    = await fetch('api.php?action=get_master_stok');
+        const res    = await fetch(`${API_BASE}?action=get_master_stok`);
         const master = await res.json();
         const dropdown = document.getElementById('dropdownBarang');
         dropdown.innerHTML = '';
@@ -736,15 +780,17 @@ function renderDraft() {
 
 async function simpanLaporanFinal() {
     if (draftItem.length === 0) return toast.warning('Daftar restock masih kosong!');
+    
     const newReport = {
         id:      'RSTK-' + Date.now().toString().slice(-4),
-        waktu:   new Date().toLocaleString('id-ID', {weekday:'long',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),
+        // GUNAKAN INI: Agar formatnya standar (2026-05-03T05:49:00.000Z)
+        waktu:   new Date().toISOString(), 
         petugas: currentUser.fullName || currentUser.user,
         cabang:  cabangAktif,
         items:   draftItem
     };
     try {
-        await fetch('api.php?action=save_laporan_restock', {
+        await fetch(`${API_BASE}?action=save_laporan_restock`, {
             method: 'POST',
             body:   JSON.stringify(newReport)
         });
@@ -759,7 +805,7 @@ async function simpanLaporanFinal() {
 
 async function renderHistoryStok() {
     try {
-        const url = `api.php?action=get_laporan_restock&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`;
+        const url = `${API_BASE}?action=get_laporan_restock&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`;
         const res = await fetch(url);
         historyRestockCloud = await res.json();
         const tbody = document.getElementById('tabelHistoryStok');
@@ -787,7 +833,7 @@ async function hapusLaporanCloud(id) {
     const ok = await showConfirm('Hapus laporan restock ini permanen?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_laporan_restock&id=${id}`);
+        await fetch(`${API_BASE}?action=del_laporan_restock&id=${id}`);
         toast.success('Laporan berhasil dihapus!');
         renderHistoryStok();
     } catch(e) {
@@ -798,34 +844,65 @@ async function hapusLaporanCloud(id) {
 function bukaDetail(report_id) {
     const data = historyRestockCloud.find(h => h.report_id === report_id);
     if (!data) return;
-    document.getElementById('detID').innerText     = 'ID: ' + data.report_id;
-    document.getElementById('detWaktu').innerText  = 'Restock Tanggal: ' + data.waktu_teks;
-    document.getElementById('detUser').innerText   = data.petugas;
+
+    // Isi Header & Meta
+    document.getElementById('detID').innerText    = '📋 ' + data.report_id;
+    document.getElementById('detWaktu').innerText = data.waktu_teks;
+    document.getElementById('detUser').innerText  = data.petugas;
     document.getElementById('detCabang').innerText = data.cabang;
+
+    // Render List Barang dengan Style Baru
     const items = JSON.parse(data.items_json || '[]');
-    document.getElementById('detTabelItems').innerHTML = items.map(it =>
-        `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid var(--border);">${it.item}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">${it.qty}</td>
-        </tr>`
+    document.getElementById('detListItems').innerHTML = items.map(it =>
+        `<div class="det-item-row">
+            <span class="det-item-name">${it.item}</span>
+            <div class="det-item-qty-box">${it.qty}</div>
+        </div>`
     ).join('');
-    document.getElementById('detailOverlay').style.display = 'block';
+
+    document.getElementById('detailOverlay').style.display = 'flex';
     document.getElementById('btnKirimWA').onclick = () => kirimLaporanWA(data);
 }
 
+// Tambahan agar klik di luar container bisa menutup modal
+function tutupDetailOutside(e) {
+    if (e.target.id === 'detailOverlay') tutupDetail();
+}
+
 function kirimLaporanWA(data) {
+    if (!data) return;
+
+    // Bersihkan data tanggal: Ganti strip (-) menjadi garis miring (/) 
+    // agar browser mobile (Safari/iOS) tidak error membaca tanggal MySQL
+    let tglRaw = data.waktu ? data.waktu.replace(/-/g, "/") : new Date();
+    let tglObj = new Date(tglRaw);
+
+    // Cek jika masih Invalid (biasanya karena format teks Indo tadi)
+    if (isNaN(tglObj.getTime())) {
+        // Jika Invalid, gunakan waktu saat ini sebagai cadangan
+        tglObj = new Date();
+    }
+
+    const options = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
+    const tglIndo = tglObj.toLocaleDateString('id-ID', options);
+    const jamIndo = tglObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+    
     const items = JSON.parse(data.items_json || '[]');
-    let itemText = items.map(it => `* ${it.item}: ${it.qty}`).join('%0A');
-    const teksWA = `🚚 *LAPORAN RESTOCK BARANG*%0A` +
-                   `TANGGAL : ${data.waktu_teks}%0A` +
-                   `NAMA : ${data.petugas}%0A` +
-                   `CABANG : ${data.cabang}%0A` +
-                   `--------------------------------%0A` +
-                   `🥟 *RINCIAN BARANG:*%0A` +
-                   `${itemText}%0A` +
-                   `--------------------------------%0A` +
-                   `✅ _Laporan via Aplikasi Kasir Hoki Dimsum_`;
-    window.open(`https://wa.me/?text=${teksWA}`, '_blank');
+    let txt = `🚚 *LAPORAN PERMINTAAN RE-STOK*\n`;
+    txt += `*TANGGAL* : ${tglIndo} | ${jamIndo} WIB\n`;
+    txt += `*NAMA* : ${data.petugas}\n`;
+    txt += `*CABANG* : ${data.cabang}\n`;
+    txt += `--------------------------------\n`;
+    txt += `🥟 *RINCIAN BARANG* :\n`;
+    
+    items.forEach(it => {
+        txt += `• ${it.item}: ${it.qty}\n`;
+    });
+    
+    txt += `--------------------------------\n`;
+    txt += `✅ _Laporan via Web Pos-Kasir Hoki Dimsum_`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
 }
 
 function tutupDetail() {

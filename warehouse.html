@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -10,6 +10,22 @@
     <link rel="stylesheet" href="style.css?v=20260501">
     <style>
 
+    .btn-hapus-icon {
+        background: #fff5f5;
+        border: 1px solid #feb2b2;
+        color: var(--red);
+        padding: 4px 8px;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .btn-hapus-icon:hover {
+        background: var(--red);
+        color: white;
+    }
+    
     .wh-card {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -182,6 +198,7 @@
     }
 
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -275,14 +292,19 @@
                 <table class="wh-tbl">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Masuk (Manual)</th>
-                            <th>Keluar (Auto Penjualan)</th>
-                            <th>Sisa Stok</th>
+                            <th>Waktu</th>
+                            <th>Keterangan</th>
+                            <th>Masuk</th>
+                            <th>Keluar</th>
+                            <th>Sisa</th>
+                            <th style="width: 40px; text-align:center;">Aksi</th> <!-- Tambah kolom ini -->
                         </tr>
                     </thead>
                     <tbody id="ledgerTbody">
-                        <tr><td class="wh-empty-td" colspan="4">Pilih produk untuk melihat riwayat.</td></tr>
+                        <tr><td class="wh-empty-td" colspan="6">Pilih produk untuk melihat riwayat.</td></tr> <!-- Colspan ganti ke 6 -->
+                    </tbody>
+                    <tbody id="ledgerTbody">
+                        <tr><td class="wh-empty-td" colspan="5">Pilih produk untuk melihat riwayat.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -476,14 +498,18 @@ function sisaClass(sisa) {
 
 async function loadProdukList() {
     try {
-        const res   = await fetch('api.php?action=get_bahan_baku');
-        const list  = await res.json().catch(() => []);
-        const prods = Array.isArray(list) ? list : [];
+        // Tarik daftar item yang pernah diaudit oleh staff
+        const res = await fetch(`${API_BASE}?action=get_audit_items_master`);
+        const list = await res.json().catch(() => []);
 
         const dropdown = document.getElementById('dropdownProdukWH');
-        dropdown.innerHTML = prods.map(p =>
-            `<div class="dropdown-item" data-id="${p.id}" data-nama="${p.nama}"
-                onclick="pilihProdukWH(this)">${p.nama} (${p.satuan})</div>`
+        if (list.length === 0) {
+            dropdown.innerHTML = `<div class="dropdown-item">Belum ada data audit dari cabang</div>`;
+            return;
+        }
+
+        dropdown.innerHTML = list.map(p =>
+            `<div class="dropdown-item" data-id="${p.nama}" onclick="pilihProdukWH(this)">${p.nama}</div>`
         ).join('');
     } catch(e) {
         console.error('loadProdukList:', e);
@@ -511,58 +537,73 @@ function onProdukChange(id) {
     loadLedger(id);
 }
 
-async function loadLedger(sku) {
+async function loadLedger(namaItem) {
     const tbody = document.getElementById('ledgerTbody');
-    tbody.innerHTML = `<tr><td class="wh-empty-td" colspan="4">⏳ Memuat...</td></tr>`;
+    tbody.innerHTML = `<tr><td class="wh-empty-td" colspan="6">⏳ Memuat...</td></tr>`;
 
     try {
-        const res  = await fetch(`api.php?action=get_warehouse_ledger&sku=${encodeURIComponent(sku)}`);
-        const rows = await res.json().catch(() => []);
-        const list = Array.isArray(rows) ? rows : [];
+        const res = await fetch(`${API_BASE}?action=get_warehouse_ledger&sku=${encodeURIComponent(namaItem)}`);
+        const list = await res.json().catch(() => []);
 
-        // Update sisa badge
-        const sisa   = list.length > 0 ? list[0].sisa : 0;
-        const cls    = list.length > 0 ? sisaClass(sisa) : '';
+        const sisa = list.length > 0 ? list[0].sisa : 0;
         const sisaEl = document.getElementById('sisaVal');
         sisaEl.textContent = list.length > 0 ? sisa : '—';
-        sisaEl.className   = `val ${cls}`;
+        sisaEl.className = `val ${sisaClass(sisa)}`;
 
-        document.getElementById('ledgerCount').textContent =
-            list.length > 0 ? `${list.length} entri` : '';
+        document.getElementById('ledgerCount').textContent = list.length > 0 ? `${list.length} entri` : '';
 
         if (list.length === 0) {
-            tbody.innerHTML = `<tr><td class="wh-empty-td" colspan="4">📋 Belum ada riwayat stok.<br>Tambahkan stok masuk pertama di atas.</td></tr>`;
+            tbody.innerHTML = `<tr><td class="wh-empty-td" colspan="6">📋 Belum ada riwayat stok.</td></tr>`;
             return;
         }
 
         tbody.innerHTML = list.map((r, i) => {
-            const tgl    = r.tgl    || '—';
-            const masuk  = parseFloat(r.masuk  || 0);
-            const keluar = parseFloat(r.keluar || 0);
-            const s      = parseFloat(r.sisa   || 0);
-            const sc     = sisaClass(s);
             const isLatest = i === 0;
-
+            // Kita tambahkan tombol hapus di kolom terakhir
+            // Gunakan r.id (pastikan di api.php menyertakan kolom ID)
             return `<tr${isLatest ? ' class="latest"' : ''}>
-                <td>
-                    <span class="mono">${tgl}</span>
-                    ${isLatest ? '<span class="terbaru-badge">Terbaru</span>' : ''}
-                </td>
-                <td>
-                    <span class="mono ${masuk > 0 ? 'val-masuk' : ''}">${masuk > 0 ? '+' + masuk : '—'}</span>
-                </td>
-                <td>
-                    <span class="mono ${keluar > 0 ? 'val-keluar' : ''}">${keluar > 0 ? '-' + keluar : '—'}</span>
-                </td>
-                <td>
-                    <span class="mono val-${sc}">${s}</span>
+                <td><span class="mono">${r.tgl}</span></td>
+                <td><small><b>${r.catatan}</b></small></td>
+                <td><span class="mono val-masuk">${r.masuk > 0 ? '+' + r.masuk : '—'}</span></td>
+                <td><span class="mono val-keluar">${r.keluar > 0 ? '-' + r.keluar : '—'}</span></td>
+                <td><span class="mono val-${sisaClass(r.sisa)}">${r.sisa}</span></td>
+                <td style="text-align:center;">
+                    <button class="btn-hapus-icon" onclick="hapusLedger('${r.id}')" title="Hapus Data">🗑️</button>
                 </td>
             </tr>`;
         }).join('');
 
     } catch(e) {
         console.error('loadLedger:', e);
-        tbody.innerHTML = `<tr><td class="wh-empty-td" colspan="4">⚠️ Gagal memuat data.</td></tr>`;
+        tbody.innerHTML = `<tr><td class="wh-empty-td" colspan="6">⚠️ Gagal memuat data.</td></tr>`;
+    }
+}
+
+async function hapusLedger(id) {
+    // Validasi Role: Hanya Owner/VIP yang bisa hapus riwayat gudang
+    if (!['Owner', 'VIP'].includes(currentUser.role)) {
+        return toast.error('Hanya Owner yang boleh menghapus riwayat stok!');
+    }
+
+    const ok = await showConfirm('Hapus riwayat stok ini? Sisa stok akan otomatis dihitung ulang.', 'Ya, Hapus', 'Batal', '🗑️');
+    if (!ok) return;
+
+    try {
+        const res = await fetch(`${API_BASE}?action=delete_warehouse_ledger`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: id })
+        });
+        
+        const hasil = await res.json();
+        if (hasil.status === 'success') {
+            toast.success('Data berhasil dihapus');
+            loadLedger(selectedSKU); // Refresh tabel
+        } else {
+            toast.error('Gagal menghapus: ' + (hasil.message || 'error'));
+        }
+    } catch(e) {
+        toast.error('Gagal koneksi ke server!');
     }
 }
 
@@ -577,7 +618,7 @@ async function tambahMasuk() {
     if (qty <= 0) return toast.warning('Jumlah masuk harus lebih dari 0!');
 
     try {
-        const res   = await fetch('api.php?action=save_warehouse_masuk', {
+        const res   = await fetch(`${API_BASE}?action=save_warehouse_masuk`, {
             method:  'POST',
             headers: {'Content-Type':'application/json'},
             body:    JSON.stringify({ sku: selectedSKU, tgl, masuk: qty, catatan })

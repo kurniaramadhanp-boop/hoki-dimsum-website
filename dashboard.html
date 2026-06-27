@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -547,6 +547,7 @@
     }
 
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -649,9 +650,9 @@
                         <div class="dropdown-item" onclick="pilihMetode('QRIS','📱','QRIS')"><span class="dd-icon">📱</span><span>QRIS</span></div>
                         <div class="dropdown-item" onclick="pilihMetode('GF','🛵','GRABFOOD')"><span class="dd-icon">🛵</span><span>GRABFOOD</span></div>
                         <div class="dropdown-item" onclick="pilihMetode('GB','🍴','GOFOOD')"><span class="dd-icon">🍴</span><span>GOFOOD</span></div>
-                        <div class="dropdown-item" onclick="pilihMetode('SF','🛍️','SHOPFOOD')"><span class="dd-icon">🛍️</span><span>SHOPFOOD</span></div>
-                        <div class="dropdown-item" onclick="pilihMetode('PG','💳','PAYGUE')"><span class="dd-icon">💳</span><span>PAYGUE</span></div>
-                        <div class="dropdown-item" onclick="pilihMetode('RM','🏪','ROMBONGAN')"><span class="dd-icon">🏪</span><span>ROMBONGAN</span></div>
+                        <div class="dropdown-item" onclick="pilihMetode('SF','🛍️','SHOPEEFOOD')"><span class="dd-icon">🛍️</span><span>SHOPEEFOOD</span></div>
+                        <div class="dropdown-item" onclick="pilihMetode('PG','💳','PANGGIH')"><span class="dd-icon">💳</span><span>PANGGIH</span></div>
+                        <div class="dropdown-item" onclick="pilihMetode('RM','🏪','RAMA')"><span class="dd-icon">🏪</span><span>RAMA</span></div>
                     </div>
                 </div>
                 <input type="hidden" id="metodeBayar" value="CASH">
@@ -709,9 +710,9 @@
                 <div class="dropdown-item" onclick="pilihMetodeSheet('QRIS','📱','QRIS')"><span class="dd-icon">📱</span><span>QRIS</span></div>
                 <div class="dropdown-item" onclick="pilihMetodeSheet('GF','🛵','GRABFOOD')"><span class="dd-icon">🛵</span><span>GRABFOOD</span></div>
                 <div class="dropdown-item" onclick="pilihMetodeSheet('GB','🍴','GOFOOD')"><span class="dd-icon">🍴</span><span>GOFOOD</span></div>
-                <div class="dropdown-item" onclick="pilihMetodeSheet('SF','🛍️','SHOPFOOD')"><span class="dd-icon">🛍️</span><span>SHOPFOOD</span></div>
-                <div class="dropdown-item" onclick="pilihMetodeSheet('PG','💳','PAYGUE')"><span class="dd-icon">💳</span><span>PAYGUE</span></div>
-                <div class="dropdown-item" onclick="pilihMetodeSheet('RM','🏪','ROMBONGAN')"><span class="dd-icon">🏪</span><span>ROMBONGAN</span></div>
+                <div class="dropdown-item" onclick="pilihMetodeSheet('SF','🛍️','SHOPEEFOOD')"><span class="dd-icon">🛍️</span><span>SHOPEEFOOD</span></div>
+                <div class="dropdown-item" onclick="pilihMetodeSheet('PG','💳','PANGGIH')"><span class="dd-icon">💳</span><span>PANGGIH</span></div>
+                <div class="dropdown-item" onclick="pilihMetodeSheet('RM','🏪','RAMA')"><span class="dd-icon">🏪</span><span>RAMA</span></div>
             </div>
         </div>
         <input type="hidden" id="metodeBayarSheet" value="CASH">
@@ -887,7 +888,7 @@ function updateHeaderInfo() {
 
 async function loadOmsetHarian() {
     try {
-        const res  = await fetch(`api.php?action=get_omset_harian&cabang=${encodeURIComponent(cabangHoki)}`);
+        const res  = await fetch(`${API_BASE}?action=get_omset_harian&cabang=${encodeURIComponent(cabangHoki)}`);
         const data = await res.json();
         document.getElementById('infoOmset').innerText = 'Rp ' + (data.total || 0).toLocaleString('id-ID');
         document.getElementById('infoTrx').innerText   = (data.jumlah || 0) + 'x';
@@ -908,7 +909,7 @@ setInterval(updateClock, 1000);
 /* ── PRODUK ── */
 async function renderKasir() {
     try {
-        const res = await fetch('api.php?action=get_produk');
+        const res = await fetch(`${API_BASE}?action=get_produk`);
         daftarProduk = await res.json();
         renderGrid(daftarProduk);
     } catch(e) {
@@ -986,7 +987,7 @@ async function prosesTransaksi(denganCetak, metodeOverride) {
     const total  = keranjang.reduce((s,i) => s+i.harga, 0);
     const metode = metodeOverride || document.getElementById('metodeBayar').value;
     try {
-        const res   = await fetch('api.php?action=save_transaksi', {
+        const res   = await fetch(`${API_BASE}?action=save_transaksi`, {
             method:  'POST',
             headers: {'Content-Type': 'application/json'},
             body:    JSON.stringify({cabang:cabangHoki, petugas:currentUser.fullName||currentUser.user, total, metode, items:keranjang})

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -156,37 +156,6 @@
         display: none;
     }
 
-    @media print {
-        .sidebar,
-        .filter-box,
-        .btn-cetak,
-        .bottom-nav,
-        .sheet-overlay {
-            display: none !important;
-        }
-
-        .main-content {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-        }
-
-        .top-header {
-            display: none !important;
-        }
-
-        .print-header {
-            display: block !important;
-            text-align: center;
-            border-bottom: 3px double #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-        }
-
-        .page-body {
-            padding: 20px !important;
-        }
-    }
 
     /* ── RESPONSIVE MOBILE ── */
     @media (max-width: 844px) {
@@ -198,11 +167,108 @@
     }
 
     @media print {
-        .sidebar, .bottom-nav, .filter-bar { display: none !important; }
-        .main-content { margin: 0 !important; }
-        .page-body { padding: 16px !important; }
+        /* PENTING: Buka kunci tinggi halaman agar tidak terpotong */
+        html, body {
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* Sembunyikan elemen UI POS */
+        .sidebar, .bottom-nav, .filter-bar, .top-header, .btn-cetak, 
+        .sheet-overlay, .btn-reset, .sidebar-toggle, .clock-pill {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* Atur container utama agar memenuhi kertas */
+        .table-responsive-print {
+            overflow: visible !important;
+            display: block !important;
+        }
+        
+        .main-content {
+            position: static !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        .page-body {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        /* Tampilkan Header Cetak Hoki Dimsum */
+        .print-header {
+            display: block !important;
+            text-align: center;
+            border-bottom: 2px solid #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        /* Statistik Sejajar 4 Kolom */
+        .grid-stats {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 10px !important;
+            margin-bottom: 20px !important;
+        }
+        
+        .stat-card {
+            flex: 1 !important;
+            border: 1px solid #000 !important;
+            padding: 10px !important;
+            background: #f9f9f9 !important;
+            -webkit-print-color-adjust: exact;
+        }
+
+        /* Atur Tabel agar Tidak Hilang */
+        .white-box {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin-bottom: 25px !important;
+            display: block !important;
+            overflow: visible !important;
+        }
+        
+        .laporan-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: auto !important;
+        }
+        
+        .laporan-table th {
+            background: #eee !important;
+            color: black !important;
+            border: 1px solid #000 !important;
+            padding: 8px !important;
+        }
+        
+        .laporan-table td {
+            border: 1px solid #000 !important;
+            padding: 6px !important;
+            font-size: 10px !important;
+        }
+
+        /* Paksa printer untuk mencetak warna background */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -314,7 +380,7 @@
         </div>
 
         <!-- STAT CARDS -->
-        <div class="grid-stats">
+        <div class="grid-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
             <div class="stat-card">
                 <h3>Total Omset Bruto</h3>
                 <p id="sumOmset" style="color:var(--green);">Rp 0</p>
@@ -324,15 +390,19 @@
                 <p id="sumBelanja" style="color:var(--red);">Rp 0</p>
             </div>
             <div class="stat-card laba">
-                <h3>Estimasi Laba Bersih</h3>
+                <h3>Total Setoran</h3>
                 <p id="sumLaba" style="color:var(--text);">Rp 0</p>
+            </div>
+            <div class="stat-card" style="background:#f0f7ff; border-color:#c0d6f0;">
+                <h3>Profit by HPP</h3>
+                <p id="sumProfitHPP" style="color:#1565c0;">Rp 0</p>
             </div>
         </div>
 
         <!-- TABLE PEMASUKAN -->
         <div class="white-box">
             <h4>🏢 Rekapitulasi Pemasukan per Cabang (Settlement)</h4>
-            <div style="overflow-x:auto;">
+            <div class="table-responsive-print">
                 <table class="laporan-table">
                     <thead>
                         <tr>
@@ -577,7 +647,7 @@ document.addEventListener('click', function(e) {
 /* ── LOGIKA LAPORAN (TIDAK BERUBAH) ── */
 async function loadCabangDropdown() {
     try {
-        const res  = await fetch('api.php?action=get_branches');
+        const res  = await fetch(`${API_BASE}?action=get_branches`);
         const data = await res.json();
         const aksesCabang = (['Owner','VIP'].includes(currentUser.role))
             ? data.map(c => c.nama_cabang)
@@ -601,60 +671,130 @@ async function hitungLaporan() {
         : [];
 
     try {
-        const resSet         = await fetch(`api.php?action=get_laporan_history&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`);
-        const allSettlements = await resSet.json();
-        const resKas         = await fetch(`api.php?action=get_kas_data&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`);
-        const allKasData     = await resKas.json();
+        const [resSet, resKas, resTrx, resPrd] = await Promise.all([
+            fetch(`${API_BASE}?action=get_laporan_history&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`),
+            fetch(`${API_BASE}?action=get_kas_data&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang)}`),
+            fetch(`${API_BASE}?action=get_history`),
+            fetch(`${API_BASE}?action=get_produk`)
+        ]);
 
-        let totals      = { omset:0, belanja:0, cash:0, qr:0, gb:0, gf:0, sf:0, pg:0, rm:0 };
+        const allSettlements = await resSet.json();
+        const allKasData     = await resKas.json();
+        const allTransactions = await resTrx.json();
+        const allProducts     = await resPrd.json();
+
+        let totals = { omset:0, belanja:0, cash:0, qr:0, gb:0, gf:0, sf:0, pg:0, rm:0 };
+        let profitHPP = 0;
         let rekapCabang = {};
         let rowsBelanja = [];
         let setKeterangan = new Set();
 
-        const startTime = startStr ? new Date(startStr).setHours(0,0,0,0)     : null;
-        const endTime   = endStr   ? new Date(endStr).setHours(23,59,59,999)   : null;
+        const startTime = startStr ? new Date(startStr.replace(/-/g, "/")).setHours(0,0,0,0) : null;
+        const endTime   = endStr   ? new Date(endStr.replace(/-/g, "/")).setHours(23,59,59,999) : null;
 
+        // 1. ANALISA PEMASUKAN (Settlement)
         allSettlements.forEach(r => {
-            const d    = new Date(r.waktu).getTime();
+            const d = new Date((r.waktu || "").replace(/-/g, "/")).getTime();
             const mCab  = (cabFilter === 'Semua' || r.cabang === cabFilter);
             const mDate = (!startTime || d >= startTime) && (!endTime || d <= endTime);
+            
             if (mCab && mDate) {
-                const cb     = r.cabang;
-                const m      = JSON.parse(r.metode_json || '{}');
-                const vOmset = parseInt(r.grand_total || 0);
+                const cb = r.cabang;
+                const m  = JSON.parse(r.metode_json || '{}');
                 if (!rekapCabang[cb]) rekapCabang[cb] = { cash:0, qr:0, gb:0, gf:0, sf:0, pg:0, rm:0, total:0 };
-                rekapCabang[cb].cash  += parseInt(m.CASH || 0);
-                rekapCabang[cb].qr   += parseInt(m.QRIS || 0);
-                rekapCabang[cb].gb   += parseInt(m.GB   || 0);
-                rekapCabang[cb].gf   += parseInt(m.GF   || 0);
-                rekapCabang[cb].sf   += parseInt(m.SF   || 0);
-                rekapCabang[cb].pg   += parseInt(m.PG   || 0);
-                rekapCabang[cb].rm   += parseInt(m.RM   || 0);
-                rekapCabang[cb].total += vOmset;
-                totals.omset += vOmset;
+                
+                totals.cash += (parseInt(m.CASH) || 0);
+                totals.qr   += (parseInt(m.QRIS) || 0);
+                totals.gb   += (parseInt(m.GB)   || 0);
+                totals.gf   += (parseInt(m.GF)   || 0);
+                totals.sf   += (parseInt(m.SF)   || 0);
+                totals.pg   += (parseInt(m.PG)   || 0);
+                totals.rm   += (parseInt(m.RM)   || 0);
+
+                rekapCabang[cb].cash  += (parseInt(m.CASH) || 0);
+                rekapCabang[cb].qr    += (parseInt(m.QRIS) || 0);
+                rekapCabang[cb].gb    += (parseInt(m.GB)   || 0);
+                rekapCabang[cb].gf    += (parseInt(m.GF)   || 0);
+                rekapCabang[cb].sf    += (parseInt(m.SF)   || 0);
+                rekapCabang[cb].pg    += (parseInt(m.PG)   || 0);
+                rekapCabang[cb].rm    += (parseInt(m.RM)   || 0);
+                rekapCabang[cb].total += parseInt(r.grand_total || 0);
+                totals.omset          += parseInt(r.grand_total || 0);
             }
         });
 
+        // 2. ANALISA PENGELUARAN (Kas/Belanja)
         allKasData.forEach(k => {
             if (k.mode !== 'Debit') return;
-            const d    = new Date(k.waktu).getTime();
+            const d = new Date((k.waktu || "").replace(/-/g, "/")).getTime();
             const mCab  = (cabFilter === 'Semua' || k.cabang === cabFilter);
             const mDate = (!startTime || d >= startTime) && (!endTime || d <= endTime);
             const kategoriBiaya = k.ket || "Tanpa Keterangan";
             setKeterangan.add(kategoriBiaya);
-            const mKet = selectedKets.length === 0 || selectedKets.includes(kategoriBiaya);
-            if (mCab && mDate && mKet) {
+            
+            if (mCab && mDate && (selectedKets.length === 0 || selectedKets.includes(kategoriBiaya))) {
                 const nominal = parseInt(k.nominal || 0);
                 totals.belanja += nominal;
                 rowsBelanja.push({ waktu: k.waktu, cabang: k.cabang, nama: k.nama, qty: k.qty || 1, harga: nominal });
             }
         });
 
+        // 3. ANALISA PROFIT BY HPP (Berdasarkan Item Terjual)
+        allTransactions.forEach(t => {
+            const d = new Date((t.waktu || "").replace(/-/g, "/")).getTime();
+            const mCab  = (cabFilter === 'Semua' || t.cabang === cabFilter);
+            const mDate = (!startTime || d >= startTime) && (!endTime || d <= endTime);
+        
+            if (mCab && mDate) {
+                try {
+                    const itemsSold = JSON.parse(t.items_json || '[]');
+                    itemsSold.forEach(it => {
+                        // 1. Bersihkan data dari transaksi
+                        const skuTrx  = (it.sku || "").trim();
+                        const namaTrx = (it.nama || "").trim().toLowerCase();
+                        
+                        // 2. Cari di Master Produk
+                        const master = allProducts.find(p => {
+                            const skuMaster  = (p.sku || "").trim();
+                            const namaMaster = (p.nama || "").trim().toLowerCase();
+                            
+                            // Prioritas 1: Cocokkan SKU (Jika keduanya punya SKU)
+                            if (skuMaster !== "" && skuTrx !== "") {
+                                return skuMaster === skuTrx;
+                            }
+                            // Prioritas 2: Cocokkan Nama
+                            return namaMaster === namaTrx;
+                        });
+        
+                        if (master) {
+                            const hargaJualMaster = parseFloat(master.harga) || 0;
+                            const hppMaster       = parseFloat(master.hpp) || 0;
+                            
+                            // FIX: Jika di JSON transaksi tidak ada qty, kita anggap 1
+                            const qty = parseInt(it.qty) || 1; 
+        
+                            const margin = hargaJualMaster - hppMaster;
+                            const totalProfitItem = margin * qty;
+        
+                            profitHPP += totalProfitItem;
+                        }
+                    });
+                } catch(e) { 
+                    console.error("Gagal hitung profit untuk transaksi ID: " + t.id, e); 
+                }
+            }
+        });
+
         updateKeteranganOptions(Array.from(setKeterangan));
-        renderUI(totals, rekapCabang, rowsBelanja);
+        renderUI(totals, rekapCabang, rowsBelanja, profitHPP);
+        document.getElementById('pdfTglCetak').innerText = new Date().toLocaleString('id-ID');
+        const periodeTxt = (startStr && endStr) 
+            ? `Periode: ${startStr} s/d ${endStr}` 
+            : (startStr || endStr) ? `Periode: ${startStr || endStr}` : "Periode: Semua Waktu";
+        document.getElementById('pdfPeriode').innerText = periodeTxt;
         document.getElementById('pdfTglCetak').innerText = new Date().toLocaleString('id-ID');
     } catch (e) {
-        console.error("Gagal konsolidasi data cloud:", e);
+        console.error("Gagal konsolidasi data keuangan:", e);
     }
 }
 
@@ -669,11 +809,14 @@ function updateKeteranganOptions(list) {
     });
 }
 
-function renderUI(totals, rekapCabang, rowsBelanja) {
-    document.getElementById('sumOmset').innerText   = `Rp ${totals.omset.toLocaleString()}`;
-    document.getElementById('sumBelanja').innerText  = `Rp ${totals.belanja.toLocaleString()}`;
-    document.getElementById('sumLaba').innerText     = `Rp ${(totals.omset - totals.belanja).toLocaleString()}`;
+function renderUI(totals, rekapCabang, rowsBelanja, profitHPP) {
+    // Render Stats Cards
+    document.getElementById('sumOmset').innerText    = `Rp ${totals.omset.toLocaleString('id-ID')}`;
+    document.getElementById('sumBelanja').innerText   = `Rp ${totals.belanja.toLocaleString('id-ID')}`;
+    document.getElementById('sumLaba').innerText      = `Rp ${(totals.omset - totals.belanja).toLocaleString('id-ID')}`;
+    document.getElementById('sumProfitHPP').innerText = `Rp ${profitHPP.toLocaleString('id-ID')}`;
 
+    // Render Tabel Pemasukan
     let htmlP = "";
     for (const cab in rekapCabang) {
         const r = rekapCabang[cab];
@@ -689,8 +832,9 @@ function renderUI(totals, rekapCabang, rowsBelanja) {
             <td style="font-weight:700;">Rp ${r.total.toLocaleString()}</td>
         </tr>`;
     }
-    document.getElementById('tBodyPemasukan').innerHTML = htmlP ||
-        '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">Tidak ada data</td></tr>';
+    document.getElementById('tBodyPemasukan').innerHTML = htmlP || '<tr><td colspan="9">Tidak ada data</td></tr>';
+
+    // Render Footer Pemasukan (Fix: Nilai total per metode tidak lagi 0)
     document.getElementById('tFootPemasukan').innerHTML = `<tr class="row-total">
         <td class="text-left">TOTAL</td>
         <td>${totals.cash.toLocaleString()}</td>
@@ -703,16 +847,17 @@ function renderUI(totals, rekapCabang, rowsBelanja) {
         <td style="background:#333;color:white;">Rp ${totals.omset.toLocaleString()}</td>
     </tr>`;
 
+    // Render Tabel Pengeluaran
     document.getElementById('tBodyPengeluaran').innerHTML = rowsBelanja.map(b =>
         `<tr>
-            <td class="text-left" style="font-size:11px;">${b.waktu}</td>
+            <td class="text-left">${b.waktu}</td>
             <td class="text-left">${b.cabang}</td>
             <td class="text-left">${b.nama}</td>
             <td class="text-center">${b.qty}</td>
-            <td>Rp ${parseInt(b.harga).toLocaleString()}</td>
+            <td>Rp ${b.harga.toLocaleString()}</td>
             <td class="text-left">-</td>
         </tr>`
-    ).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Tidak ada pengeluaran</td></tr>';
+    ).join('') || '<tr><td colspan="6">Tidak ada pengeluaran</td></tr>';
 
     document.getElementById('tFootPengeluaran').innerHTML = `<tr class="row-total">
         <td colspan="4" style="text-align:right;">TOTAL PENGELUARAN</td>
@@ -729,7 +874,22 @@ function resetFilter() {
 }
 
 function cetakPDF() {
-    window.print();
+    if (typeof toast !== 'undefined') toast.info("Menyiapkan laporan...");
+    
+    const cab = document.getElementById('labelCabang').innerText;
+    const periode = document.getElementById('pdfPeriode').innerText;
+    
+    // --- TAMBAHAN: Nama File PDF lebih profesional saat di-Save ---
+    document.title = `Laporan_Hoki_${cab}_${periode.replace(/ /g, '_')}`;
+    // -------------------------------------------------------------
+
+    document.getElementById('pdfTglCetak').innerText = new Date().toLocaleString('id-ID');
+    
+    setTimeout(() => {
+        window.print();
+        // Kembalikan judul tab asli setelah print selesai
+        document.title = "Hoki POS - Keuangan Global";
+    }, 700);
 }
 
 async function logout() {

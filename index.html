@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -503,6 +503,7 @@
             .chip { font-size: 10px; padding: 6px 8px; }
         }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -704,7 +705,7 @@
         btn.innerHTML = '<span>Memverifikasi...</span>';
 
         try {
-            const response = await fetch('api.php?action=login', {
+            const response = await fetch(`${API_BASE}?action=login`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({ user: userIn, pass: passIn })
@@ -754,7 +755,7 @@
                     if (ketemu.cabang) {
                         ketemu.cabang.split(',').forEach(cab => addItem(cab.trim()));
                     } else {
-                        const resCab    = await fetch('api.php?action=get_cabang');
+                        const resCab    = await fetch(`${API_BASE}?action=get_cabang`);
                         const globalCab = await resCab.json();
                         globalCab.forEach(c => addItem(c.nama_cabang || c));
                     }
@@ -785,7 +786,7 @@
 
     async function catatLogLogin(username, role, cabang) {
         try {
-            await fetch('api.php?action=add_log', {
+            await fetch(`${API_BASE}?action=add_log`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({user:username, role:role, cabang:cabang})

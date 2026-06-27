@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -206,6 +206,7 @@
         .hpp-total { font-size: 15px; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -250,28 +251,25 @@
             <!-- FORM -->
             <div class="card-hpp">
                 <h3>➕ Setting HPP Produk</h3>
-
+            
                 <div class="input-group">
-                    <label>Produk</label>
-                    <div class="custom-select-wrap" id="wrapProdukHPP">
-                        <button class="custom-select-btn" onclick="toggleDropdown('wrapProdukHPP')">
-                            <span id="labelProdukHPP">— Pilih Produk —</span>
-                            <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1l5 5 5-5" stroke="#d32f2f" stroke-width="1.5" stroke-linecap="round"/></svg>
-                        </button>
-                        <div class="custom-dropdown" id="dropdownProdukHPP"></div>
-                    </div>
+                    <label>Nama Produk</label>
+                    <input type="text" id="hNama" placeholder="Input nama produk...">
                 </div>
+            
+                <div class="input-group">
+                    <label>SKU (Kode Produk)</label>
+                    <input type="text" id="hSKU" placeholder="Input SKU (Cth: DMS-01)..." style="text-transform: uppercase;">
+                </div>
+                
                 <input type="hidden" id="hProdukId">
-                <input type="hidden" id="hNama">
-                <input type="hidden" id="hSKU">
-                <div id="hSKUDisplay" style="font-size:11px;color:var(--text-muted);margin-top:-8px;margin-bottom:8px;font-family:'DM Mono',monospace;"></div>
-
+            
                 <p style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:16px 0 8px;">Komposisi Bahan</p>
                 <div id="listBahanPicker"></div>
                 <button class="btn-add-bahan" onclick="tambahBahanRow()">+ Tambah Bahan</button>
-
+            
                 <div class="hpp-total" id="hppTotal">HPP: Rp 0</div>
-
+            
                 <button class="btn-simpan-hpp" onclick="simpanHPP()">💾 Simpan HPP</button>
             </div>
 
@@ -569,7 +567,7 @@ async function simpanHPP() {
     const payload = { id: editHPPId, nama_produk: nama, sku, bahan, harga_pokok: hpp };
 
     try {
-        const res   = await fetch('api.php?action=save_hpp_produk', {
+        const res   = await fetch(`${API_BASE}?action=save_hpp_produk`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(payload)
@@ -587,12 +585,9 @@ async function simpanHPP() {
 
 function resetForm() {
     editHPPId = null;
-    document.getElementById('labelProdukHPP').innerText = '— Pilih Produk —';
-    document.querySelectorAll('#dropdownProdukHPP .dropdown-item').forEach(i => i.classList.remove('active'));
+    document.getElementById('hNama').value = '';
+    document.getElementById('hSKU').value = '';
     document.getElementById('hProdukId').value = '';
-    document.getElementById('hNama').value     = '';
-    document.getElementById('hSKU').value      = '';
-    document.getElementById('hSKUDisplay').innerText = '';
     document.getElementById('listBahanPicker').innerHTML = '';
     document.getElementById('hppTotal').innerText = 'HPP: Rp 0';
     document.querySelector('.btn-simpan-hpp').innerText = '💾 Simpan HPP';
@@ -603,15 +598,9 @@ function siapkanEditHPP(id) {
     if (!h) return;
     editHPPId = id;
 
-    const matchItem = document.querySelector(`#dropdownProdukHPP .dropdown-item[data-sku="${h.sku}"]`);
-    if (matchItem) {
-        document.getElementById('labelProdukHPP').innerText = matchItem.textContent.trim();
-        document.querySelectorAll('#dropdownProdukHPP .dropdown-item').forEach(i => i.classList.remove('active'));
-        matchItem.classList.add('active');
-    }
+    // Langsung isi ke field input manual
     document.getElementById('hNama').value = h.nama_produk;
-    document.getElementById('hSKU').value  = h.sku;
-    document.getElementById('hSKUDisplay').innerText = `SKU: ${h.sku}`;
+    document.getElementById('hSKU').value = h.sku;
 
     document.getElementById('listBahanPicker').innerHTML = '';
     const detail = JSON.parse(h.detail_json || '[]');
@@ -625,7 +614,7 @@ async function hapusHPP(id) {
     const ok = await showConfirm('Hapus HPP produk ini?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_hpp_produk&id=${id}`);
+        await fetch(`${API_BASE}?action=del_hpp_produk&id=${id}`);
         toast.success('HPP dihapus!');
         muatHPP();
     } catch(e) { toast.error('Gagal!'); }
@@ -633,7 +622,7 @@ async function hapusHPP(id) {
 
 async function muatHPP() {
     try {
-        const res = await fetch('api.php?action=get_hpp_produk');
+        const res = await fetch(`${API_BASE}?action=get_hpp_produk`);
         allHPP    = await res.json();
         const tbody = document.getElementById('tabelHPP');
         if (!allHPP.length) {
@@ -659,18 +648,9 @@ async function muatHPP() {
 
 async function init() {
     try {
-        const [resBahan, resProduk] = await Promise.all([
-            fetch('api.php?action=get_bahan_baku'),
-            fetch('api.php?action=get_produk')
-        ]);
+        const resBahan = await fetch(`${API_BASE}?action=get_bahan_baku`);
         allBahan = await resBahan.json();
-        const produkList = await resProduk.json();
-
-        const dropdown = document.getElementById('dropdownProdukHPP');
-        dropdown.innerHTML = (Array.isArray(produkList) ? produkList : []).map(p =>
-            `<div class="dropdown-item" data-id="${p.id}" data-nama="${p.nama}" data-sku="${p.sku}"
-                onclick="pilihProdukHPP(this)">${p.nama} (${p.sku})</div>`
-        ).join('');
+        // Dropdown produk dihapus dari sini
     } catch(e) { console.error(e); }
     await muatHPP();
     tambahBahanRow();

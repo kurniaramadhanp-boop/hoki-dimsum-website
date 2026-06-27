@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -153,6 +153,7 @@
     }
 
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -396,7 +397,7 @@ function closeSheetOutside(e,id) { if(e.target===document.getElementById(id)) do
 
 /* ── LOGIKA PRODUK (TIDAK BERUBAH) ── */
 async function muatProduk() {
-    const res    = await fetch('api.php?action=get_produk');
+    const res    = await fetch(`${API_BASE}?action=get_produk`);
     const produk = await res.json();
     window.allProduk = produk;
 
@@ -442,7 +443,7 @@ async function tambahProduk() {
     if (!data.sku || !data.nama || !data.harga) return toast.warning('Lengkapi SKU, Nama, dan Harga!');
 
     try {
-        const res   = await fetch('api.php?action=save_produk', {
+        const res   = await fetch(`${API_BASE}?action=save_produk`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(data)
@@ -480,7 +481,7 @@ async function hapusProduk(id) {
     const ok = await showConfirm('Hapus produk ini secara permanen?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_produk&id=${id}`);
+        await fetch(`${API_BASE}?action=del_produk&id=${id}`);
         toast.success('Produk berhasil dihapus!');
         muatProduk();
     } catch(e) {
@@ -512,7 +513,7 @@ async function handleDrop(e) {
         if (fromIdx < toIdx) { this.after(dragSrcEl); }
         else { this.before(dragSrcEl); }
         const newOrderIds = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.getAttribute('data-id'));
-        await fetch('api.php?action=update_urutan', {
+        await fetch(`${API_BASE}?action=update_urutan`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ ids: newOrderIds })
@@ -538,7 +539,7 @@ function toggleWrapSKU() {
 
 async function muatDropdownSKU() {
     try {
-        const res = await fetch('api.php?action=get_hpp_produk');
+        const res = await fetch(`${API_BASE}?action=get_hpp_produk`);
         const hpp = await res.json();
         const dropdown = document.getElementById('dropdownSKU');
         dropdown.innerHTML = '';

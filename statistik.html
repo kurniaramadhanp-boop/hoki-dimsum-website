@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -231,6 +231,7 @@
         .page-body { padding: 16px !important; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -541,7 +542,7 @@ document.addEventListener('click', function(e) {
 
 async function loadFilters() {
     try {
-        const res  = await fetch('api.php?action=get_branches');
+        const res  = await fetch(`${API_BASE}?action=get_branches`);
         const data = await res.json();
         const dropdown = document.getElementById('dropdownCabang');
         dropdown.innerHTML = `<div class="dropdown-item active" onclick="pilihCabang('Semua','📍','Semua Cabang',this)"><span class="dd-icon">📍</span><span>Semua Cabang</span></div>`;
@@ -554,9 +555,9 @@ async function loadFilters() {
 async function loadStatistik() {
     try {
         const [resHistory, resSettlement, resKas] = await Promise.all([
-            fetch('api.php?action=get_history'),
-            fetch('api.php?action=get_laporan_history&role=Owner&cabang=Semua'),
-            fetch('api.php?action=get_kas_data&role=Owner&cabang=Semua')
+            fetch(`${API_BASE}?action=get_history`),
+            fetch(`${API_BASE}?action=get_laporan_history&role=Owner&cabang=Semua`),
+            fetch(`${API_BASE}?action=get_kas_data&role=Owner&cabang=Semua`)
         ]);
 
         const transaksi  = await resHistory.json();

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -105,6 +105,7 @@
     }
 
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -331,7 +332,7 @@ function closeSheetOutside(e,id) { if(e.target===document.getElementById(id)) do
 /* ── LOGIKA LOG (TIDAK BERUBAH) ── */
 async function tampilkanLogs() {
     try {
-        const res  = await fetch('api.php?action=get_logs');
+        const res  = await fetch(`${API_BASE}?action=get_logs`);
         const logs = await res.json();
         const tbody = document.getElementById('logTableBody');
         tbody.innerHTML = '';
@@ -365,7 +366,7 @@ async function hapusSemuaLog() {
     const ok = await showConfirm('Hapus semua catatan login? Tindakan ini tidak bisa dibatalkan.', 'Ya, Hapus', 'Batal', '🧹');
     if (!ok) return;
     try {
-        const res   = await fetch('api.php?action=clear_logs');
+        const res   = await fetch(`${API_BASE}?action=clear_logs`);
         const hasil = await res.json();
         if (hasil.status === 'success') {
             toast.success('Log berhasil dibersihkan!');

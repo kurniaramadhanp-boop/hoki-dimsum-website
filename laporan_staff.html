@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -198,28 +198,91 @@
         top: 0; left: 0;
         width: 100%; height: 100%;
         background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
         z-index: 2000;
         display: none;
         padding: 20px;
         box-sizing: border-box;
         overflow-y: auto;
+        align-items: flex-start;
+        justify-content: center;
     }
-
+    
     .detail-container {
-        max-width: 800px;
+        max-width: 720px; /* Sedikit lebih lebar untuk menampung grid */
+        width: 100%;
         margin: auto;
         background: var(--surface);
         padding: 28px;
         border-radius: var(--r-xl);
         box-shadow: var(--sh-lg);
+        border: 1px solid var(--border);
     }
-
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 12px;
+    
+    /* Box Informasi (Sesuai Gambar Premium) */
+    .detail-meta {
+        display: flex;
+        gap: 16px;
+        background: var(--bg);
+        border-radius: var(--r-md);
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border: 1px solid var(--border);
+    }
+    
+    .detail-meta-item { flex: 1; }
+    
+    .detail-meta-label {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 2px;
+    }
+    
+    .detail-meta-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+    }
+    
+    /* Penyesuaian Tabel dalam Detail */
+    .detail-container table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    
+    .detail-container th {
+        background: var(--bg);
+        color: var(--text-muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .detail-container td {
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .btn-wa-detail {
+        margin-top: 20px;
+        width: 100%;
+        background: #25D366;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: var(--r-md);
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
 
     .empty-row td {
@@ -294,6 +357,7 @@
         .ib-item { padding: 0; }
     }
     </style>
+  <script src="config.js"></script>
 </head>
 <body>
 
@@ -364,22 +428,18 @@
                 </div>
 
                 <div class="section-title">📉 Audit Stok</div>
+                <div class="exp-input-row" style="grid-template-columns: 1fr auto;">
+                    <input type="text" id="auditNamaBaru" placeholder="Ketik Nama Item (Contoh: Nasi)">
+                    <button class="btn-add-exp" onclick="addAuditItem()">Tambah Item</button>
+                </div>
+                
                 <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
                 <table id="tableAudit">
-                    <thead><tr><th>Item</th><th>Awal</th><th>Laku</th><th>Sisa</th></tr></thead>
-                    <tbody>
-                        <tr>
-                            <td>Dimsum (Pcs)</td>
-                            <td><input type="number" id="dAw" value="0" oninput="hitungSisa()" style="width:72px;padding:5px 8px;font-size:12px;margin:0;"></td>
-                            <td><b id="dLak">0</b></td>
-                            <td><b id="dSis">0</b></td>
-                        </tr>
-                        <tr>
-                            <td>Tray (Pcs)</td>
-                            <td><input type="number" id="tAw" value="0" oninput="hitungSisa()" style="width:72px;padding:5px 8px;font-size:12px;margin:0;"></td>
-                            <td><b id="tLak">0</b></td>
-                            <td><b id="tSis">0</b></td>
-                        </tr>
+                    <thead>
+                        <tr><th>Item</th><th>Awal</th><th>Laku</th><th>Sisa</th><th></th></tr>
+                    </thead>
+                    <tbody id="auditBody">
+                        <!-- Data akan diisi oleh JavaScript -->
                     </tbody>
                 </table>
                 </div>
@@ -449,27 +509,45 @@
 <!-- DETAIL OVERLAY -->
 <div id="detailOverlay">
     <div class="detail-container">
-        <button class="btn-close" onclick="tutupDetail()">← Kembali</button>
-        <h2 id="detID" style="color:var(--red);margin:0;font-size:16px;"></h2>
-        <p id="detMeta" style="color:var(--text-muted);font-size:12px;margin:4px 0 16px;"></p>
-        <hr>
-        <div class="detail-grid" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <button class="btn-back" onclick="tutupDetail()">← Kembali</button>
+            <h2 id="detID" style="margin:0; color:var(--red); font-size:16px; font-family:'DM Mono', monospace;"></h2>
+        </div>
+
+        <!-- Meta Info Card -->
+        <div class="detail-meta">
+            <div class="detail-meta-item">
+                <div class="detail-meta-label">👤 Petugas</div>
+                <div class="detail-meta-value" id="detUser">—</div>
+            </div>
+            <div class="detail-meta-item">
+                <div class="detail-meta-label">📅 Tanggal</div>
+                <div class="detail-meta-value" id="detTanggal">—</div>
+            </div>
+            <div class="detail-meta-item">
+                <div class="detail-meta-label">📍 Cabang</div>
+                <div class="detail-meta-value" id="detCabang">—</div>
+            </div>
+        </div>
+
+        <div class="detail-grid">
             <div>
-                <div class="section-title">💰 Settlement</div>
+                <p class="section-label">💰 Settlement</p>
                 <table id="detTabelMetode"></table>
             </div>
             <div>
-                <div class="section-title">📉 Stok</div>
+                <p class="section-label">📉 Stok</p>
                 <table id="detTabelAudit"></table>
             </div>
         </div>
-        <div class="section-title">💸 Pengeluaran</div>
+
+        <p class="section-label">💸 Pengeluaran</p>
         <table id="detTabelExp"></table>
+
         <div class="total-highlight" id="detGrandTotal"></div>
 
-        <!-- Tombol WA di detail -->
         <button class="btn-wa-detail" onclick="kirimWADariDetail()">
-            📲 Kirim WA
+            <span>📲</span> Kirim Laporan ke WA
         </button>
     </div>
 </div>
@@ -482,9 +560,13 @@ if (!currentUser.user) window.location.href = 'index.html';
 let pengeluaran         = [];
 let cacheHistoryLaporan = [];
 let omzetPerMetode      = {};
-let lakuDimsum          = 0;
-let lakuTray            = 0;
 let currentDetailID     = null;
+let defaultAudit = [
+    { id: 'Dimsum Shaomai', nama: 'Dimsum Shaomai (Pcs)', awal: 0, laku: 0, sisa: 0, isDefault: true },
+    { id: 'Alu Tray AX-350', nama: 'Alu Tray AX-350 (Pcs)', awal: 0, laku: 0, sisa: 0, isDefault: true }
+];
+let savedCustomItems = JSON.parse(localStorage.getItem('hoki_custom_audit')) || [];
+let auditItems = [...defaultAudit, ...savedCustomItems];
 
 /* ── SIDEBAR ── */
 function toggleSidebar() {
@@ -621,53 +703,95 @@ function closeSheetOutside(e,id) { if(e.target===document.getElementById(id)) do
 async function fetchLaporanData() {
     const tglDipilih = document.getElementById('filterTanggal').value;
     try {
-        const resProd      = await fetch('api.php?action=get_produk');
-        const masterProduk = await resProd.json();
-        const resTrx       = await fetch('api.php?action=get_history');
+        // 1. Tarik data secara paralel: Master HPP dan History Transaksi
+        const [resHpp, resTrx] = await Promise.all([
+            fetch(`${API_BASE}?action=get_hpp_produk`),
+            fetch(`${API_BASE}?action=get_history`)
+        ]);
+        
+        const masterHpp = await resHpp.json();
         const transactions = await resTrx.json();
 
-        omzetPerMetode = { CASH: 0, QRIS: 0, GF: 0, GB: 0, PG: 0, RM: 0 };
-        lakuDimsum = 0;
-        lakuTray   = 0;
+        // 2. Inisialisasi Omset
+        omzetPerMetode = { CASH: 0, QRIS: 0, GF: 0, GB: 0, SF: 0, PG: 0, RM: 0 };
         let totalOmzet = 0;
 
+        // 3. Reset angka laku di semua item audit agar tidak double saat refresh
+        auditItems.forEach(it => it.laku = 0);
+
+        // 4. Mulai Analisis Transaksi
         transactions.forEach(t => {
+            // Filter berdasarkan Tanggal dan Cabang Aktif
             if ((t.waktu || '').split(' ')[0] === tglDipilih && t.cabang === cabangAktif) {
+                
+                // A. Hitung Omset per Metode
                 const mtd = (t.metode || '').toUpperCase();
-                if (omzetPerMetode[mtd] !== undefined) omzetPerMetode[mtd] += parseInt(t.total);
-                totalOmzet += parseInt(t.total);
-                const items = JSON.parse(t.items_json || '[]');
-                items.forEach(it => {
-                    const p = masterProduk.find(x => x.nama === it.nama || x.sku === it.sku);
-                    if (p) {
-                        lakuDimsum += (parseInt(p.dimsumPcs)  || 0) * (parseInt(it.qty) || 1);
-                        lakuTray   += (parseInt(p.aluTrayPcs) || 0) * (parseInt(it.qty) || 1);
+                if (omzetPerMetode[mtd] !== undefined) {
+                    omzetPerMetode[mtd] += parseInt(t.total);
+                    totalOmzet += parseInt(t.total);
+                }
+
+                // B. Analisis Bahan Baku dari Produk yang Terjual
+                const itemsTerjual = JSON.parse(t.items_json || '[]');
+                itemsTerjual.forEach(it => {
+                    // LANGKAH 1: Cari Resep di Master HPP berdasarkan SKU
+                    const hppResep = masterHpp.find(x => x.sku === it.sku);
+                    
+                    if (hppResep) {
+                        const detailBahan = JSON.parse(hppResep.detail_json || '[]');
+                        
+                        // LANGKAH 2: Bedah setiap bahan dalam resep produk tersebut
+                        detailBahan.forEach(bahan => {
+                            // LANGKAH 3: Cari Kecocokan Nama Bahan dengan Daftar Audit Stok
+                            // Menggunakan lowercase agar "Dimsum" cocok dengan "dimsum"
+                            const aIdx = auditItems.findIndex(audit => 
+                                audit.nama.toLowerCase().includes(bahan.nama.toLowerCase()) || 
+                                bahan.nama.toLowerCase().includes(audit.nama.toLowerCase())
+                            );
+
+                            if (aIdx > -1) {
+                                // LANGKAH 4: Laku = (Jumlah Bahan di Resep) x (Jumlah Porsi terjual)
+                                auditItems[aIdx].laku += (parseFloat(bahan.qty) || 0) * (parseInt(it.qty) || 1);
+                            }
+                        });
+                    }
+
+                    // Tambahan: Cek jika produk itu sendiri adalah item audit tetap (contoh: Nasi Putih)
+                    const cIdx = auditItems.findIndex(x => !x.isDefault && x.nama.toLowerCase() === it.nama.toLowerCase());
+                    if (cIdx > -1) {
+                        auditItems[cIdx].laku += (parseInt(it.qty) || 1);
                     }
                 });
             }
         });
 
-        let htmlM = '';
-        for (let m in omzetPerMetode) {
-            htmlM += `<tr><td><b>${m}</b></td><td>Rp ${omzetPerMetode[m].toLocaleString('id-ID')}</td></tr>`;
-        }
-        document.querySelector('#tableMetode tbody').innerHTML = htmlM;
-        document.getElementById('dLak').innerText       = lakuDimsum;
-        document.getElementById('tLak').innerText       = lakuTray;
+        // 5. Update UI Total Omset
         document.getElementById('grandTotal').innerText = 'Rp ' + totalOmzet.toLocaleString('id-ID');
         window.currentGrandTotal = totalOmzet;
-        document.getElementById('reportID').innerText   = `LP-${cabangAktif.toUpperCase()}-${tglDipilih.replace(/-/g,'')}`;
-        hitungSisa();
+        document.getElementById('reportID').innerText = `LP-${cabangAktif.toUpperCase()}-${tglDipilih.replace(/-/g,'')}`;
+        
+        // 6. Hitung Sisa Stok (Awal - Laku) dan Render Tabel
+        auditItems.forEach(it => {
+            it.laku = Math.round(it.laku); // Membulatkan angka (misal 3.99 jadi 4)
+            it.sisa = it.awal - it.laku;
+        });
+        
+        renderAuditTable();
+        renderOmsetTable(); // Render ulang tabel omset
+
     } catch (e) {
         console.error(e);
+        toast.error('Gagal memproses audit stok dari resep HPP');
     }
 }
 
-function hitungSisa() {
-    const dAw = parseInt(document.getElementById('dAw').value) || 0;
-    const tAw = parseInt(document.getElementById('tAw').value) || 0;
-    document.getElementById('dSis').innerText = dAw - lakuDimsum;
-    document.getElementById('tSis').innerText = tAw - lakuTray;
+// Fungsi pembantu untuk render tabel omset agar bersih
+function renderOmsetTable() {
+    let htmlM = '';
+    for (let m in omzetPerMetode) {
+        htmlM += `<tr><td><b>${m}</b></td><td>Rp ${omzetPerMetode[m].toLocaleString('id-ID')}</td></tr>`;
+    }
+    document.querySelector('#tableMetode tbody').innerHTML = htmlM;
 }
 
 function addEx() {
@@ -694,25 +818,31 @@ function renderExpTable() {
 
 /* ── SIMPAN LAPORAN (tanpa WA) ── */
 async function simpanLaporan() {
+    const tglLaporan = document.getElementById('filterTanggal').value; // YYYY-MM-DD dari kalender
+    
+    // Ambil jam menit detik saat ini dengan format Jakarta
+    const sekarang = new Date();
+    const jam = String(sekarang.getHours()).padStart(2, '0');
+    const menit = String(sekarang.getMinutes()).padStart(2, '0');
+    const detik = String(sekarang.getSeconds()).padStart(2, '0');
+    const jamSekarang = `${jam}:${menit}:${detik}`;
+    
     const data = {
         report_id: document.getElementById('reportID').innerText,
-        petugas:   currentUser.fullName || currentUser.user,
-        cabang:    cabangAktif,
-        metode:    omzetPerMetode,
-        audit: {
-            dAw:  document.getElementById('dAw').value,
-            tAw:  document.getElementById('tAw').value,
-            dLak: lakuDimsum,
-            tLak: lakuTray
-        },
+        petugas: currentUser.fullName || currentUser.user,
+        cabang: cabangAktif,
+        waktu: tglLaporan + ' ' + jamSekarang, // Tanggal kalender + Jam sekarang
+        metode: omzetPerMetode,
+        audit: auditItems,
         expens: pengeluaran,
-        total:  window.currentGrandTotal || 0
+        total: window.currentGrandTotal || 0
     };
+
     try {
-        const res   = await fetch('api.php?action=save_laporan', {
-            method:  'POST',
+        const res = await fetch(`${API_BASE}?action=save_laporan`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(data)
+            body: JSON.stringify(data)
         });
         const hasil = await res.json();
         if (hasil.status === 'success') {
@@ -730,32 +860,75 @@ async function simpanLaporan() {
 function kirimWADariDetail() {
     const d = window.currentDetailCache;
     if (!d) return;
-    const nomor  = "6281234567890"; // ganti nomor WA tujuan
-    const mtd    = JSON.parse(d.metode_json    || '{}');
-    const audit  = JSON.parse(d.audit_json     || '{}');
-    const exps   = JSON.parse(d.pengeluaran_json || '[]');
 
-    let txt = `*SETTLEMENT HOKI POS*\n`;
-    txt += `ID: ${d.report_id}\n`;
-    txt += `Petugas: ${d.petugas}\n`;
-    txt += `Cabang: ${d.cabang}\n`;
-    txt += `------------------\n`;
-    for (let m in mtd) if (parseInt(mtd[m]) > 0) txt += `${m}: Rp ${parseInt(mtd[m]).toLocaleString('id-ID')}\n`;
-    txt += `------------------\n`;
-    txt += `Dimsum Laku: ${audit.dLak || 0}\n`;
-    txt += `Tray Laku: ${audit.tLak || 0}\n`;
-    if (exps.length) {
-        txt += `------------------\nPengeluaran:\n`;
-        exps.forEach(e => txt += `• ${e.nama}: Rp ${parseInt(e.harga).toLocaleString('id-ID')}\n`);
+    // 1. Perbaikan Format Tanggal & Waktu (Cegah Invalid Date)
+    let tglRaw = d.waktu ? d.waktu.replace(/-/g, "/") : new Date();
+    let tglObj = new Date(tglRaw);
+    if (isNaN(tglObj.getTime())) tglObj = new Date();
+
+    const options = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
+    const tglIndo = tglObj.toLocaleDateString('id-ID', options);
+    const jamIndo = tglObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+
+    // 2. Parsing Data JSON
+    const mtd   = JSON.parse(d.metode_json    || '{}');
+    const audit = JSON.parse(d.audit_json     || '[]');
+    const exps  = JSON.parse(d.pengeluaran_json || '[]');
+
+    // 3. Susun Omset Per Metode
+    let omsetTxt = "";
+    for (let m in mtd) {
+        if (parseInt(mtd[m]) > 0) {
+            omsetTxt += `• ${m}: Rp ${parseInt(mtd[m]).toLocaleString('id-ID')}\n`;
+        }
     }
-    txt += `------------------\nTOTAL: Rp ${parseInt(d.grand_total).toLocaleString('id-ID')}`;
-    window.open(`https://wa.me/${nomor}?text=${encodeURIComponent(txt)}`, '_blank');
+
+    // 4. Susun Audit Stok (Mencantumkan Stok Awal, Laku, dan Sisa)
+    let auditTxt = "";
+    if (Array.isArray(audit) && audit.length > 0) {
+        audit.forEach(it => {
+            // Revisi: Menambahkan 'Awal' pada rincian audit
+            auditTxt += `• ${it.nama}: Awal ${it.awal}, Laku ${it.laku} (Sisa ${it.sisa})\n`;
+        });
+    } else {
+        auditTxt = "• Tidak ada data audit stok\n";
+    }
+
+    // 5. Susun Pengeluaran
+    let expTxt = "";
+    if (exps.length > 0) {
+        exps.forEach(e => {
+            expTxt += `• ${e.nama}: Rp ${parseInt(e.harga).toLocaleString('id-ID')}\n`;
+        });
+    } else {
+        expTxt = "• Tidak ada pengeluaran\n";
+    }
+
+    // 6. Merangkai Pesan Final
+    let txt = `💰 *LAPORAN HARIAN*\n`;
+    txt += `*TANGGAL* : ${tglIndo} | ${jamIndo} WIB\n`;
+    txt += `*NAMA* : ${d.petugas}\n`;
+    txt += `*CABANG* : ${d.cabang}\n`;
+    txt += `*ID* : ${d.report_id}\n`;
+    txt += `--------------------------------\n`;
+    txt += `💵 *OMSET PER METODE* :\n${omsetTxt}`;
+    txt += `--------------------------------\n`;
+    txt += `📉 *AUDIT STOK* :\n${auditTxt}`;
+    txt += `--------------------------------\n`;
+    txt += `💸 *PENGELUARAN* :\n${expTxt}`;
+    txt += `--------------------------------\n`;
+    txt += `*TOTAL OMSET* : Rp ${parseInt(d.grand_total).toLocaleString('id-ID')}\n`;
+    txt += `--------------------------------\n`;
+    txt += `✅ _Laporan via Web Pos-Kasir Hoki Dimsum_`;
+
+    // Mengirim ke WhatsApp tanpa nomor tujuan tetap (Solusi 1)
+    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
 }
 
 /* ── RENDER HISTORY ── */
 async function renderHistoryLaporan() {
     try {
-        const url = `api.php?action=get_laporan_history&role=${currentUser.role}&cabang=${encodeURIComponent(cabangAktif)}`;
+        const url = `${API_BASE}?action=get_laporan_history&role=${currentUser.role}&cabang=${encodeURIComponent(cabangAktif)}`;
         const res = await fetch(url);
         cacheHistoryLaporan = await res.json();
         const tbody = document.getElementById('historyBody');
@@ -771,7 +944,7 @@ async function renderHistoryLaporan() {
 
             const parts  = (l.waktu || '').split(' ');
             const tglStr = parts[0] || '—';
-            const jamStr = parts[1] ? parts[1].substring(0,5) : '—';
+            const jamStr = parts[1] ? parts[1].substring(0, 5) : '—'; // Ambil HH:mm saja
 
             tbody.innerHTML += `<tr>
                 <td><small style="font-family:'DM Mono',monospace;color:var(--text-muted);">${tglStr}</small></td>
@@ -794,90 +967,115 @@ async function renderHistoryLaporan() {
 function bukaDetail(rid) {
     const data = cacheHistoryLaporan.find(x => x.report_id === rid);
     if (!data) return;
-    currentDetailID        = rid;
+    currentDetailID = rid;
     window.currentDetailCache = data;
 
-    const audit  = JSON.parse(data.audit_json       || '{}');
-    const metode = JSON.parse(data.metode_json       || '{}');
-    const exps   = JSON.parse(data.pengeluaran_json  || '[]');
+    const audit = JSON.parse(data.audit_json || '[]');
+    const metode = JSON.parse(data.metode_json || '{}');
+    const exps = JSON.parse(data.pengeluaran_json || '[]');
 
-    document.getElementById('detID').innerText   = data.report_id;
-    document.getElementById('detMeta').innerText = `${data.petugas} · ${data.cabang} · ${data.waktu}`;
+    // Header & Meta Info
+    document.getElementById('detID').innerText = '📋 ' + data.report_id;
+    document.getElementById('detUser').innerText = data.petugas;
+    document.getElementById('detCabang').innerText = data.cabang;
+    
+    // Ambil hanya tanggal saja
+    const tglSaja = (data.waktu || '').split(' ')[0];
+    document.getElementById('detTanggal').innerText = tglSaja;
 
+    // Render Tabel Metode (Sesuai Logika Lama Anda)
     let htmlM = '<thead><tr><th>Metode</th><th>Nominal</th></tr></thead><tbody>';
     for (let m in metode) {
-        const isAuth = ['Owner','VIP'].includes(currentUser.role);
-        const lock   = (m === 'CASH' || m === 'QRIS' || !isAuth);
-        htmlM += `<tr><td>${m}</td><td>
-            ${lock
-                ? `<span>Rp ${parseInt(metode[m]).toLocaleString('id-ID')}</span>`
-                : `<input type="number" class="edit-mtd" data-m="${m}" value="${metode[m]}" oninput="recalcDetail()" style="width:110px;padding:5px 8px;font-size:12px;margin:0;">`
-            }
-        </td></tr>`;
+        const isLocked = (m === 'CASH' || m === 'QRIS');
+        htmlM += `<tr>
+            <td>${m}</td>
+            <td>
+                ${isLocked 
+                    ? `<span style="font-weight:700;">Rp ${parseInt(metode[m]).toLocaleString('id-ID')}</span>` 
+                    : `<input type="number" class="edit-mtd" data-m="${m}" value="${metode[m]}" oninput="recalcDetail()" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:4px;">`
+                }
+            </td>
+        </tr>`;
     }
     document.getElementById('detTabelMetode').innerHTML = htmlM + '</tbody>';
 
-    document.getElementById('detTabelAudit').innerHTML = `
-        <thead><tr><th>Item</th><th>Awal</th><th>Laku</th><th>Sisa</th></tr></thead>
-        <tbody>
-            <tr><td>Dimsum</td><td>${audit.dAw||0}</td><td>${audit.dLak||0}</td><td><b>${(audit.dAw||0)-(audit.dLak||0)}</b></td></tr>
-            <tr><td>Tray</td><td>${audit.tAw||0}</td><td>${audit.tLak||0}</td><td><b>${(audit.tAw||0)-(audit.tLak||0)}</b></td></tr>
-        </tbody>`;
+    // Render Tabel Audit
+    let htmlA = '<thead><tr><th>Item</th><th>Laku</th><th>Sisa</th></tr></thead><tbody>';
+    audit.forEach(it => {
+        htmlA += `<tr><td>${it.nama}</td><td>${it.laku}</td><td><b>${it.sisa}</b></td></tr>`;
+    });
+    document.getElementById('detTabelAudit').innerHTML = htmlA + '</tbody>';
 
+    // Render Tabel Exp
     document.getElementById('detTabelExp').innerHTML = exps.length
         ? `<thead><tr><th>Nama</th><th>Harga</th></tr></thead><tbody>` +
-          exps.map(e => `<tr><td>${e.nama}</td><td>Rp ${parseInt(e.harga).toLocaleString('id-ID')}</td></tr>`).join('') +
-          `</tbody>`
-        : '<tbody><tr><td colspan="2" style="text-align:center;color:var(--text-light);padding:12px;">Tidak ada pengeluaran</td></tr></tbody>';
+          exps.map(e => `<tr><td>${e.nama}</td><td>Rp ${parseInt(e.harga).toLocaleString('id-ID')}</td></tr>`).join('') + `</tbody>`
+        : '<tbody><tr><td colspan="2" style="text-align:center;padding:12px;color:var(--text-muted);">Tidak ada pengeluaran</td></tr></tbody>';
 
-    const totalHTML = `Total: <span id="detTotal">Rp ${parseInt(data.grand_total).toLocaleString('id-ID')}</span>`;
-    const editBtn   = currentUser.role !== 'Staff'
-        ? `<button class="btn-save-edit-det" onclick="saveEditDetail()">💾 Simpan Perubahan</button>`
-        : '';
-    document.getElementById('detGrandTotal').innerHTML = totalHTML + editBtn;
-
-    document.getElementById('detailOverlay').style.display = 'block';
+    // Footer Total
+    const totalHTML = `Total Omset: <span id="detTotal">Rp ${parseInt(data.grand_total).toLocaleString('id-ID')}</span>`;
+    const saveBtn = `<button class="btn-save-edit-det" onclick="saveEditDetail()" style="margin-top:15px; background:var(--red); color:white; border:none; padding:10px; border-radius:var(--r-md); cursor:pointer; font-weight:700; width:100%;">💾 Simpan Perubahan</button>`;
+    
+    document.getElementById('detGrandTotal').innerHTML = totalHTML + (currentUser.role !== 'Staff' ? saveBtn : '');
+    document.getElementById('detailOverlay').style.display = 'flex';
 }
 
 function recalcDetail() {
-    const data = cacheHistoryLaporan.find(x => x.report_id === currentDetailID);
+    const data = window.currentDetailCache;
     if (!data) return;
-    const mtd  = JSON.parse(data.metode_json || '{}');
-    let total  = (parseInt(mtd.CASH) || 0) + (parseInt(mtd.QRIS) || 0);
-    document.querySelectorAll('.edit-mtd').forEach(i => total += parseInt(i.value) || 0);
+    
+    const mtd = JSON.parse(data.metode_json || '{}');
+    // Mulai dari nilai CASH dan QRIS yang terkunci
+    let total = (parseInt(mtd.CASH) || 0) + (parseInt(mtd.QRIS) || 0);
+    
+    // Tambahkan nilai dari semua input yang bisa diedit
+    document.querySelectorAll('.edit-mtd').forEach(input => {
+        total += parseInt(input.value) || 0;
+    });
+    
     const el = document.getElementById('detTotal');
     if (el) el.innerText = 'Rp ' + total.toLocaleString('id-ID');
-    window.tempTotal = total;
+    window.tempTotal = total; // Simpan untuk proses save
 }
 
 async function saveEditDetail() {
-    const ok = await showConfirm('Simpan perubahan settlement?', 'Simpan', 'Batal', '💾');
-    if (!ok) return;
-    const dataLama = cacheHistoryLaporan.find(x => x.report_id === currentDetailID);
-    const mtd      = JSON.parse(dataLama.metode_json || '{}');
-    document.querySelectorAll('.edit-mtd').forEach(i => mtd[i.dataset.m] = parseInt(i.value) || 0);
+    if (!confirm('Simpan perubahan nominal settlement ini?')) return;
+
+    const dataLama = window.currentDetailCache;
+    const mtd = JSON.parse(dataLama.metode_json || '{}');
+
+    // Ambil nilai baru dari input manual (GF, GB, SF, dll)
+    document.querySelectorAll('.edit-mtd').forEach(input => {
+        mtd[input.dataset.m] = parseInt(input.value) || 0;
+    });
+
     const dataBaru = {
         report_id: currentDetailID,
-        petugas:   dataLama.petugas,
-        cabang:    dataLama.cabang,
-        metode:    mtd,
-        audit:     JSON.parse(dataLama.audit_json      || '{}'),
-        expens:    JSON.parse(dataLama.pengeluaran_json || '[]'),
-        total:     window.tempTotal || dataLama.grand_total
+        petugas: dataLama.petugas, // Tetap gunakan petugas asli
+        cabang: dataLama.cabang,   // Tetap gunakan cabang asli
+        waktu: dataLama.waktu,     // PENTING: Kirim kembali waktu asli agar tidak berubah
+        metode: mtd,
+        audit: JSON.parse(dataLama.audit_json || '[]'),
+        expens: JSON.parse(dataLama.pengeluaran_json || '[]'),
+        total: window.tempTotal || dataLama.grand_total
     };
+
     try {
-        const res = await fetch('api.php?action=save_laporan', {
-            method:  'POST',
+        const res = await fetch(`${API_BASE}?action=save_laporan`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(dataBaru)
+            body: JSON.stringify(dataBaru)
         });
-        if ((await res.json()).status === 'success') {
-            toast.success('Settlement Diupdate!');
+        const hasil = await res.json();
+        if (hasil.status === 'success') {
+            toast.success('Laporan berhasil diperbarui tanpa mengubah waktu!');
             tutupDetail();
-            renderHistoryLaporan();
+            renderHistoryLaporan(); // Refresh tabel history
+        } else {
+            toast.error('Gagal memperbarui laporan');
         }
     } catch (e) {
-        toast.error('Gagal koneksi server!');
+        toast.error('Koneksi server gagal');
     }
 }
 
@@ -885,7 +1083,7 @@ async function hapusLaporan(id) {
     const ok = await showConfirm('Hapus laporan ini?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`api.php?action=del_laporan&id=${id}`);
+        await fetch(`${API_BASE}?action=del_laporan&id=${id}`);
         toast.success('Laporan dihapus!');
         renderHistoryLaporan();
     } catch (e) {
@@ -913,6 +1111,89 @@ function updateInfoBar() {
     const el2 = document.getElementById('infoCabang');
     if (el1) el1.innerText = name;
     if (el2) el2.innerText = cabangAktif;
+}
+
+/* ── AUDIT ITEM ── */
+function addAuditItem() {
+    const nama = document.getElementById('auditNamaBaru').value.trim();
+    if (!nama) return toast.warning('Nama item harus diisi!');
+    
+    // Cek duplikasi
+    if (auditItems.find(x => x.nama.toLowerCase() === nama.toLowerCase())) {
+        return toast.warning('Item sudah ada dalam daftar!');
+    }
+
+    // Buat objek item baru
+    const newItem = { 
+        id: 'custom_' + Date.now(), 
+        nama: nama, 
+        awal: 0, 
+        laku: 0, 
+        sisa: 0, 
+        isDefault: false 
+    };
+
+    auditItems.push(newItem);
+    
+    // Simpan ke localStorage agar jadi item tetap
+    saveAuditToLocal();
+    
+    document.getElementById('auditNamaBaru').value = '';
+    
+    // Hitung ulang laku dan render
+    fetchLaporanData(); 
+}
+
+function saveAuditToLocal() {
+    const customOnly = auditItems.filter(it => !it.isDefault);
+    localStorage.setItem('hoki_custom_audit', JSON.stringify(customOnly));
+}
+
+function renderAuditTable() {
+    const tbody = document.getElementById('auditBody');
+    tbody.innerHTML = auditItems.map((it, idx) => `
+        <tr>
+            <td>${it.nama}</td>
+            <td>
+                <input type="number" value="${it.awal}" 
+                    oninput="updateAuditAwal(${idx}, this.value)" 
+                    style="width:70px; padding:5px; margin:0; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+            </td>
+            <td><b>${it.laku}</b></td>
+            <!-- Tambahkan ID unik di sini untuk update otomatis -->
+            <td><b id="sisa-${idx}" style="color:${it.sisa < 0 ? 'var(--red)' : 'inherit'}">${it.sisa}</b></td>
+            <td>
+                ${it.isDefault ? '' : `<span onclick="removeAuditItem(${idx})" style="color:var(--red); cursor:pointer; font-weight:bold; padding:0 5px;">×</span>`}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateAuditAwal(idx, val) {
+    const awal = parseInt(val) || 0;
+    auditItems[idx].awal = awal;
+    
+    // Hitung sisa secara real-time di memori
+    const sisa = awal - auditItems[idx].laku;
+    auditItems[idx].sisa = sisa;
+
+    // UPDATE LANGSUNG KE DOM (Tanpa Re-render tabel)
+    const elSisa = document.getElementById(`sisa-${idx}`);
+    if (elSisa) {
+        elSisa.innerText = sisa;
+        elSisa.style.color = sisa < 0 ? 'var(--red)' : 'inherit';
+    }
+
+    // Simpan ke localStorage (Jangan panggil renderAuditTable di dalam fungsi ini)
+    const customOnly = auditItems.filter(it => !it.isDefault);
+    localStorage.setItem('hoki_custom_audit', JSON.stringify(customOnly));
+}
+
+function removeAuditItem(idx) {
+    if(confirm('Hapus item ini dari daftar tetap?')) {
+        auditItems.splice(idx, 1);
+        saveAuditToLocal();
+    }
 }
 
 window.onload = function() {

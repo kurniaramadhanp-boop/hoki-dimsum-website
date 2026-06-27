@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Jakarta');
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -141,6 +142,7 @@ $conn = new mysqli("localhost", "u173485424_kurniarp", "Alpukat19#", "u173485424
 if ($conn->connect_error) {
     die(json_encode(["status"=>"error","message"=>"Koneksi gagal: ".$conn->connect_error]));
 }
+$conn->query("SET time_zone = '+07:00'"); 
 $conn->set_charset("utf8mb4");
 
 // ── AUTO-CREATE ESSENTIAL TABLES ──────────────────────
@@ -458,6 +460,16 @@ switch ($action) {
         break;
 
     case 'del_transaksi':
+        // ── GUARD: hanya role VIP ──
+        $tkn  = $conn->real_escape_string($_GET['token'] ?? '');
+        $uname= $conn->real_escape_string($_GET['user']  ?? '');
+        $chk  = $conn->query("SELECT role FROM users WHERE LOWER(username)=LOWER('$uname') AND session_token='$tkn'");
+        $actor= ($chk && $chk->num_rows > 0) ? $chk->fetch_assoc() : null;
+        if (!$actor || $actor['role'] !== 'VIP') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Akses ditolak! Hanya VIP yang dapat menghapus transaksi."]);
+            break;
+        }
         $id = (int)($_GET['id'] ?? 0);
         $conn->query("DELETE FROM transaksi WHERE id=$id");
         echo json_encode(["status"=>"success"]);
@@ -610,12 +622,13 @@ switch ($action) {
         $role  = $_GET['role'] ?? '';
         $akses = $_GET['cabang'] ?? '';
         if ($role === 'Owner' || $role === 'VIP' || $akses === 'Semua') {
-            $sql = "SELECT * FROM hoki_kas_data ORDER BY waktu DESC LIMIT 200";
+            // VIP/Owner: load semua data tanpa batas (atau limit besar)
+            $sql = "SELECT * FROM hoki_kas_data ORDER BY waktu DESC LIMIT 2000";
         } else {
             $cabangArr  = explode(',', $akses);
             $cleanCabang = array_map(fn($i) => "'".$conn->real_escape_string(trim($i))."'", $cabangArr);
             $cabangList  = implode(',', $cleanCabang);
-            $sql = "SELECT * FROM hoki_kas_data WHERE cabang IN ($cabangList) ORDER BY waktu DESC LIMIT 100";
+            $sql = "SELECT * FROM hoki_kas_data WHERE cabang IN ($cabangList) ORDER BY waktu DESC LIMIT 500";
         }
         $res = $conn->query($sql);
         echo json_encode($res ? $res->fetch_all(MYSQLI_ASSOC) : []);
@@ -636,6 +649,16 @@ switch ($action) {
         break;
 
     case 'del_kas_data':
+        // ── GUARD: hanya role VIP ──
+        $tkn  = $conn->real_escape_string($_GET['token'] ?? '');
+        $uname= $conn->real_escape_string($_GET['user']  ?? '');
+        $chk  = $conn->query("SELECT role FROM users WHERE LOWER(username)=LOWER('$uname') AND session_token='$tkn'");
+        $actor= ($chk && $chk->num_rows > 0) ? $chk->fetch_assoc() : null;
+        if (!$actor || $actor['role'] !== 'VIP') {
+            http_response_code(403);
+            echo json_encode(["status"=>"error","message"=>"Akses ditolak! Hanya VIP yang dapat menghapus catatan."]);
+            break;
+        }
         $id = (int)($_GET['id'] ?? 0);
         $conn->query("DELETE FROM hoki_kas_data WHERE id=$id");
         echo json_encode(["status"=>"success"]);
@@ -658,18 +681,41 @@ switch ($action) {
         break;
 
     case 'save_laporan':
-        // FIX: pakai $input bukan $json yang tidak terdefinisi
         $rid     = $conn->real_escape_string($input['report_id'] ?? '');
         $petugas = $conn->real_escape_string($input['petugas'] ?? '');
         $cb      = $conn->real_escape_string($input['cabang'] ?? '');
         $mt      = $conn->real_escape_string(json_encode($input['metode'] ?? []));
-        $au      = $conn->real_escape_string(json_encode($input['audit'] ?? []));
+        $au_data = $input['audit'] ?? []; 
+        $au      = $conn->real_escape_string(json_encode($au_data));
         $ex      = $conn->real_escape_string(json_encode($input['expens'] ?? []));
         $tt      = (int)($input['total'] ?? 0);
-        $sql = "INSERT INTO laporan_settlement (report_id, waktu, petugas, cabang, metode_json, audit_json, pengeluaran_json, grand_total) VALUES ('$rid',NOW(),'$petugas','$cb','$mt','$au','$ex',$tt) ON DUPLICATE KEY UPDATE petugas='$petugas', cabang='$cb', metode_json='$mt', audit_json='$au', pengeluaran_json='$ex', grand_total=$tt";
-        echo $conn->query($sql)
-            ? json_encode(["status"=>"success"])
-            : json_encode(["status"=>"error","message"=>$conn->error]);
+        
+        // AMBIL WAKTU: Jika dari JS ada, pakai itu. Jika tidak ada, baru pakai jam sekarang.
+        $wkt     = $conn->real_escape_string($input['waktu'] ?? date('Y-m-d H:i:s'));
+        
+        // Konversi ke format YYYY-MM-DD untuk tabel ledger
+        $tglOnly = date('Y-m-d', strtotime($wkt)); 
+
+        $sql = "INSERT INTO laporan_settlement (report_id, waktu, petugas, cabang, metode_json, audit_json, pengeluaran_json, grand_total) 
+                VALUES ('$rid','$wkt','$petugas','$cb','$mt','$au','$ex',$tt) 
+                ON DUPLICATE KEY UPDATE waktu='$wkt', petugas='$petugas', cabang='$cb', metode_json='$mt', audit_json='$au', pengeluaran_json='$ex', grand_total=$tt";
+        
+        if ($conn->query($sql)) {
+            $conn->query("DELETE FROM warehouse_ledger WHERE catatan LIKE '%$rid%'");
+
+            foreach ($au_data as $item) {
+                $laku = (float)($item['laku'] ?? 0);
+                if ($laku > 0) {
+                    $namaItem = $conn->real_escape_string($item['nama']);
+                    $ket = "Laporan $cb ($rid)";
+                    
+                    // PERBAIKAN: Gunakan '$tglOnly', bukan CURDATE()
+                    $conn->query("INSERT INTO warehouse_ledger (tgl, sku, masuk, keluar, cabang, catatan) 
+                                  VALUES ('$tglOnly', '$namaItem', 0, $laku, '$cb', '$ket')");
+                }
+            }
+            echo json_encode(["status" => "success"]);
+        }
         break;
 
     case 'del_laporan':
@@ -691,14 +737,38 @@ switch ($action) {
         $byk  = (float)($input['banyak'] ?? 0);
         $sat  = $conn->real_escape_string($input['satuan'] ?? '');
         $hs   = $byk > 0 ? $hrg / $byk : 0;
+
         if ($id > 0) {
             $sql = "UPDATE bahan_baku SET nama='$nama', harga=$hrg, banyak=$byk, satuan='$sat', harga_satuan=$hs WHERE id=$id";
         } else {
             $sql = "INSERT INTO bahan_baku (nama, harga, banyak, satuan, harga_satuan) VALUES ('$nama',$hrg,$byk,'$sat',$hs)";
         }
-        echo $conn->query($sql)
-            ? json_encode(["status"=>"success"])
-            : json_encode(["status"=>"error","message"=>$conn->error]);
+
+        if ($conn->query($sql)) {
+            // ── LOGIKA OTOMATISASI HPP ──
+            // 1. Update subtotal di semua rincian HPP yang menggunakan bahan ini
+            $conn->query("UPDATE hpp_produk_detail d 
+                          JOIN bahan_baku b ON d.bahan_id = b.id 
+                          SET d.subtotal = d.qty * b.harga_satuan 
+                          WHERE d.bahan_id = " . ($id > 0 ? $id : $conn->insert_id));
+
+            // 2. Hitung ulang total harga_pokok di tabel hpp_produk
+            $conn->query("UPDATE hpp_produk h 
+                          SET harga_pokok = (
+                              SELECT SUM(subtotal) 
+                              FROM hpp_produk_detail 
+                              WHERE hpp_id = h.id
+                          )");
+
+            // 3. Sinkronkan nilai HPP baru ke tabel produk utama berdasarkan SKU
+            $conn->query("UPDATE produk p 
+                          JOIN hpp_produk h ON p.sku = h.sku 
+                          SET p.hpp = h.harga_pokok");
+
+            echo json_encode(["status" => "success"]);
+        } else {
+            echo json_encode(["status" => "error", "message" => $conn->error]);
+        }
         break;
 
     case 'del_bahan_baku':
@@ -783,51 +853,63 @@ switch ($action) {
 
     // ── WAREHOUSE LEDGER ──────────────────────────────
     case 'get_warehouse_ledger':
-        $sku = $conn->real_escape_string($_GET['sku'] ?? '');
-        if (!$sku) { echo json_encode([]); break; }
+        $namaItem = $conn->real_escape_string($_GET['sku'] ?? '');
+        if (!$namaItem) { echo json_encode([]); break; }
 
-        // masuk per hari
-        $masukMap = [];
-        $mr = $conn->query("SELECT DATE(created_at) as tgl, SUM(masuk) as total FROM warehouse_ledger WHERE sku='$sku' GROUP BY DATE(created_at)");
-        if ($mr) foreach ($mr->fetch_all(MYSQLI_ASSOC) as $r) {
-            $masukMap[$r['tgl']] = (float)$r['total'];
-        }
-
-        // Build nama→sku map dari tabel produk (items_json transaksi hanya simpan nama, bukan sku)
-        $namaSku = [];
-        $pr = $conn->query("SELECT nama, sku FROM produk");
-        if ($pr) foreach ($pr->fetch_all(MYSQLI_ASSOC) as $p) {
-            $namaSku[$p['nama']] = $p['sku'];
-        }
-
-        // keluar dari transaksi (items_json)
-        $keluarMap = [];
-        $tr = $conn->query("SELECT DATE(waktu) as tgl, items_json FROM transaksi WHERE items_json IS NOT NULL");
-        if ($tr) foreach ($tr->fetch_all(MYSQLI_ASSOC) as $t) {
-            $items = json_decode($t['items_json'] ?? '[]', true);
-            if (!is_array($items)) continue;
-            foreach ($items as $item) {
-                $itemSku = $item['sku'] ?? ($namaSku[$item['nama'] ?? ''] ?? '');
-                if ($itemSku === $sku) {
-                    $keluarMap[$t['tgl']] = ($keluarMap[$t['tgl']] ?? 0) + (int)($item['qty'] ?? 1);
-                }
+        // PERBAIKAN: Ambil dari kolom 'tgl' dan urutkan berdasarkan 'tgl'
+        $res = $conn->query("SELECT *, DATE_FORMAT(tgl, '%d/%m/%Y') as waktu_tampil 
+                             FROM warehouse_ledger 
+                             WHERE sku='$namaItem' 
+                             ORDER BY tgl ASC, created_at ASC");
+        
+        $history = [];
+        $saldo = 0;
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $masuk  = (float)$row['masuk'];
+                $keluar = (float)$row['keluar'];
+                $saldo  = $saldo + $masuk - $keluar;
+                
+                $history[] = [
+                    'id'      => $row['id'],
+                    'tgl'     => $row['waktu_tampil'], // Menampilkan tanggal transaksi asli
+                    'catatan' => $row['catatan'] ?: ($masuk > 0 ? 'Input Manual' : 'Penjualan'),
+                    'masuk'   => $masuk,
+                    'keluar'  => $keluar,
+                    'sisa'    => $saldo
+                ];
             }
         }
-
-        $allDates = array_unique(array_merge(array_keys($masukMap), array_keys($keluarMap)));
-        sort($allDates);
-
-        $sisa = 0;
-        $rows = [];
-        foreach ($allDates as $tgl) {
-            $masuk  = $masukMap[$tgl] ?? 0;
-            $keluar = $keluarMap[$tgl] ?? 0;
-            $awal   = $sisa;
-            $sisa   = $awal + $masuk - $keluar;
-            $rows[] = ['tgl'=>$tgl,'stok_awal'=>$awal,'masuk'=>$masuk,'keluar'=>$keluar,'sisa'=>$sisa];
-        }
-        echo json_encode(array_reverse($rows));
+        echo json_encode(array_reverse($history)); 
         break;
+        
+    case 'delete_warehouse_ledger':
+        $data = json_decode(file_get_contents('php://input'), true);
+        $id = $data['id'] ?? null;
+    
+        if (!$id) {
+            echo json_encode(['status' => 'error', 'message' => 'ID tidak ditemukan di server']);
+            break;
+        }
+    
+        // Ambil SKU/Nama sebelum dihapus untuk hitung ulang nanti
+        $stmt = $conn->query("SELECT sku FROM warehouse_ledger WHERE id = '$id'");
+        $row = $stmt->fetch_assoc();
+    
+        if ($row) {
+            $sku = $row['sku'];
+            // Hapus datanya
+            $conn->query("DELETE FROM warehouse_ledger WHERE id = '$id'");
+            
+            // Logika Re-calculate (Opsional, tapi bagus agar sisa stok di database sinkron)
+            // Karena di fungsi 'get' Mas sudah menghitung saldo secara LIVE (looping), 
+            // sebenarnya menghapus saja sudah cukup untuk memperbaiki tampilan di browser.
+            
+            echo json_encode(['status' => 'success', 'message' => 'Data berhasil dihapus']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Data sudah tidak ada']);
+        }
+        break;        
 
     case 'save_warehouse_masuk':
         $sku     = $conn->real_escape_string($input['sku']     ?? '');
@@ -838,11 +920,35 @@ switch ($action) {
         $ok = $conn->query("INSERT INTO warehouse_ledger (tgl, sku, masuk, catatan) VALUES ('$tgl','$sku',$masuk,'$catatan')");
         echo json_encode($ok ? ['status'=>'success'] : ['status'=>'error','message'=>$conn->error]);
         break;
-
     // ─────────────────────────────────────────────────
     default:
         echo json_encode(["status"=>"error","message"=>"Action '$action' tidak dikenali."]);
         break;
+        
+        
+    // ── AUDIT ITEM ──────────────────────────────    
+    case 'get_audit_items_master':
+        // 1. Daftar Item Audit Default (Samakan dengan laporan_staff.html)
+        $items = ['Dimsum Shaomai (Pcs)', 'Alu Tray AX-350 (Pcs)'];
+
+        // 3. Ambil dari Ledger (Guna menangkap custom item yang mungkin pernah diketik staff)
+        $res2 = $conn->query("SELECT DISTINCT sku FROM warehouse_ledger");
+        if ($res2) {
+            while($r = $res2->fetch_assoc()) {
+                $items[] = $r['sku'];
+            }
+        }
+
+        // Hilangkan duplikasi nama dan urutkan
+        $finalList = array_unique($items);
+        sort($finalList);
+
+        $output = [];
+        foreach ($finalList as $name) {
+            if (!empty($name)) $output[] = ["nama" => $name];
+        }
+        echo json_encode($output);
+        break;    
 }
 
 $conn->close();
