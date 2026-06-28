@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -725,15 +725,20 @@
                     await catatLogLogin(ketemu.user, ketemu.role, 'Semua');
                     window.location.href = 'dashboard.html';
 
-                } else if (ketemu.role === 'SPV') {
+                } else if (ketemu.role === 'SPV' || ketemu.role === 'Investor') {
                     const lokasi = ketemu.cabang;
-                    if (!lokasi) { showError('Error: Cabang SPV belum ditentukan!'); return; }
+                    if (!lokasi) { showError('Error: Cabang belum ditentukan!'); return; }
                     localStorage.setItem('currentUser', JSON.stringify({user:ketemu.user, fullName:ketemu.fullName||ketemu.user, role:ketemu.role, cabang:ketemu.cabang}));
                     localStorage.setItem('cabangHoki', lokasi);
                     localStorage.setItem('sessionToken', hasil.token || '');
                     localStorage.setItem('lastActivity', Date.now().toString());
                     await catatLogLogin(ketemu.user, ketemu.role, lokasi);
-                    window.location.href = 'dashboard.html';
+                    
+                    if (ketemu.role === 'Investor') {
+                        window.location.href = 'investor_omset.html';
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
 
                 } else {
                     // Staff / Senior Staff — pilih cabang dulu

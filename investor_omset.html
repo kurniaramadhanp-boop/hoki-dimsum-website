@@ -107,10 +107,10 @@
 </aside>
 
 <main class="main-content" id="mainContent">
-    <header class="main-header">
+    <header class="top-header">
         <div class="header-left">
             <button class="btn-menu" onclick="toggleSidebar()">☰</button>
-            <h1 class="header-title">🤝 Omset Cabang</h1>
+            <div class="header-page-title">🤝 Omset Cabang</div>
         </div>
         <div class="header-right">
             <div class="clock-pill">
@@ -400,6 +400,14 @@ function renderTransactions(limit) {
 
 function loadMoreTransactions() {
     renderTransactions(allTransactionsData.length);
+}
+
+function logout() {
+    if(confirm('Logout dari sistem?')) {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('cabangHoki');
+        window.location.href = 'index.html';
+    }
 }
 
 window.onload = async () => {

@@ -146,10 +146,10 @@
 </aside>
 
 <main class="main-content" id="mainContent">
-    <header class="main-header">
+    <header class="top-header">
         <div class="header-left">
             <button class="btn-menu" onclick="toggleSidebar()">☰</button>
-            <h1 class="header-title">🤝 Profit Sharing</h1>
+            <div class="header-page-title">🤝 Profit Sharing</div>
         </div>
         <div class="header-right">
             <div class="clock-pill">
@@ -160,7 +160,7 @@
     </header>
 
     <div class="page-body">
-        <div class="payroll-filter-card">
+        <div class="white-box">
             <div class="wh-card-title" style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:16px;">📅 Filter Pembagian Hasil</div>
             <div class="wh-form-row" style="display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap;">
                 <div class="salary-form-control" style="display:flex; flex-direction:column; gap:4px;">
@@ -175,7 +175,7 @@
             </div>
         </div>
 
-        <div class="payroll-result-card" style="background:transparent; border:none; box-shadow:none; padding:0;">
+        <div class="white-box" style="margin-top: 24px;">
             <div class="wh-card-title" style="font-size:16px; font-weight:800; color:var(--text); margin-bottom:16px;">📋 Rincian Profit Sharing</div>
             
             <div class="profit-card-grid">
@@ -204,7 +204,7 @@
             <button class="btn-simpan-profit" id="btnSimpanProfit" onclick="saveProfitSharing()" disabled>💾 Simpan Profit Sharing Bulan Ini</button>
         </div>
         
-        <div class="history-section">
+        <div class="white-box" style="margin-top: 24px;">
             <div class="wh-card-title" style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:16px;">🕰️ History Profit Sharing</div>
             <div class="wh-table-wrap">
                 <table>
@@ -520,9 +520,21 @@ async function delHistory(id) {
     } catch(e) {}
 }
 
+function logout() {
+    if(confirm('Logout dari sistem?')) {
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('cabangHoki');
+        window.location.href = 'index.html';
+    }
+}
+
 window.onload = async () => {
     buildSidebar();
     updateClock();
+    
+    if (currentUser.role === 'Investor') {
+        document.getElementById('btnSimpanProfit').style.display = 'none';
+    }
     
     // Set default bulan hari ini
     const today = new Date();
