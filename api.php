@@ -1266,8 +1266,8 @@ switch ($action) {
         $satuan_minggu_ini = $tgl_selesai;
         $sabtu_kemarin = date('Y-m-d', strtotime('-1 day', strtotime($satuan_minggu_ini)));
         $minggu_lalu = date('Y-m-d', strtotime('-7 days', strtotime($satuan_minggu_ini)));
-        $senin_dua_minggu_lalu = date('Y-m-d', strtotime('-13 days', strtotime($minggu_lalu)));
-        $minggu_lalu_penuh = date('Y-m-d', strtotime('-7 days', strtotime($minggu_lalu)));
+        $senin_dua_minggu_lalu = date('Y-m-d', strtotime('-7 days', strtotime($tgl_mulai)));
+        $minggu_lalu_penuh = date('Y-m-d', strtotime('-7 days', strtotime($tgl_selesai)));
 
         if (!$conn) {
             echo json_encode(["status"=>"error","message"=>"Koneksi database gagal atau tidak tersedia."]);
@@ -1475,7 +1475,8 @@ switch ($action) {
                 $totalOmsetStaffBM += $omsetHarianCabangBM[$tgl][$log['cabang']] ?? 0;
             }
 
-            $winMingguan = ($totalOmsetStaffBM >= (int)$conf['target_omset_mingguan'] && $totalMasukBM >= 6);
+            $targetHadirMingguan = isset($conf['target_hadir_mingguan']) ? (int)$conf['target_hadir_mingguan'] : 6;
+            $winMingguan = ($totalOmsetStaffBM >= (int)$conf['target_omset_mingguan'] && $totalMasukBM >= $targetHadirMingguan);
             $totalBonusMingguan = $winMingguan ? (int)$conf['bonus_mingguan'] : 0;
             if ($totalBonusMingguan > 0) {
                 $rincian[] = ["kategori" => "Bonus Mingguan (Periode Lalu)", "nominal" => $totalBonusMingguan, "qty" => 1, "subtotal" => $totalBonusMingguan];
@@ -1494,8 +1495,9 @@ switch ($action) {
 
                 $daysInMonth = (int)date('t', strtotime($tgl_mulai));
                 $targetBulan = ($daysInMonth >= 31) ? (int)$conf['target_omset_bulanan_31'] : (int)$conf['target_omset_bulanan_30'];
+                $targetHadirBulanan = isset($conf['target_hadir_bulanan']) ? (int)$conf['target_hadir_bulanan'] : 25;
 
-                $winBulanan = ($totalOmsetStaffBB >= $targetBulan && $totalMasukBB >= 25);
+                $winBulanan = ($totalOmsetStaffBB >= $targetBulan && $totalMasukBB >= $targetHadirBulanan);
                 $totalBonusBulanan = $winBulanan ? (int)$conf['bonus_bulanan'] : 0;
                 if ($totalBonusBulanan > 0) {
                     $rincian[] = ["kategori" => "Bonus Bulanan (Bulan Lalu)", "nominal" => $totalBonusBulanan, "qty" => 1, "subtotal" => $totalBonusBulanan];
