@@ -775,8 +775,13 @@ function buildMoreMenu() {
         items.push({icon:'💰',label:'HPP Produk',link:'hpp_produk.html'});
         items.push({icon:'🏭',label:'Warehouse',link:'warehouse.html'});
         items.push({icon:'💸',label:'Belanja',link:'belanja.html'});
+        items.push({icon:'💵',label:'Salary Staff',link:'salary_staff.html'});
         items.push({icon:'📊',label:'Keuangan',link:'laporan.html'});
         items.push({icon:'📈',label:'Statistik',link:'statistik.html'});
+    }
+    if (['Owner','VIP','Investor'].includes(role)) {
+        items.push({icon:'📈',label:'Omset Cabang',link:'investor_omset.html'});
+        items.push({icon:'💰',label:'Profit Sharing',link:'investor_profit.html'});
     }
     if (role === 'VIP') {
         items.push({icon:'👥',label:'Users',link:'user.html'});
