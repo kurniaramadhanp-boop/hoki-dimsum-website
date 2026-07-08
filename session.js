@@ -35,7 +35,38 @@
         } catch (e) {
             // Ignore parse errors, let normal app flow handle invalid session data
         }
+
+        // ── AUTOMATIC MIDNIGHT LOGOUT ──
+        const todayStr = new Date().toDateString();
+        let loginDateStr = localStorage.getItem('loginDate');
+        
+        if (!loginDateStr) {
+            localStorage.setItem('loginDate', todayStr);
+            loginDateStr = todayStr;
+        }
+        
+        if (loginDateStr !== todayStr) {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('loginDate');
+            localStorage.removeItem('cabangHoki');
+            localStorage.removeItem('sessionToken');
+            window.location.href = LOGIN_PAGE;
+            return;
+        }
     }
+
+    // Periksa setiap 1 menit (60000ms) apakah hari sudah berganti (melewati jam 12 malam)
+    setInterval(() => {
+        const todayStr = new Date().toDateString();
+        const loginDateStr = localStorage.getItem('loginDate');
+        if (loginDateStr && loginDateStr !== todayStr) {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('loginDate');
+            localStorage.removeItem('cabangHoki');
+            localStorage.removeItem('sessionToken');
+            window.location.href = LOGIN_PAGE;
+        }
+    }, 60000);
 
     /* Sync logout across tabs — if another tab clears currentUser, redirect here too */
     window.addEventListener('storage', function (e) {
