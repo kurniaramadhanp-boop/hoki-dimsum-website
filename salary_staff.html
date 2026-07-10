@@ -566,10 +566,7 @@
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:0 24px 16px;">
-            <button class="btn-pdf-slip" onclick="unduhSlipPDF()">
-                <span>📄</span> Unduh Slip PDF
-            </button>
+        <div style="padding:0 24px 16px;">
             <button class="btn-wa-slip" onclick="kirimWAPayroll()">
                 <span>📲</span> Kirim Slip ke WA
             </button>
@@ -608,6 +605,7 @@ function toggleSidebar() {
 function buildMoreMenu() {
     const role = currentUser.role;
     const items = [{icon:'🚚',label:'Restock',link:'restock.html'}];
+    items.push({icon:'📚',label:'Edukasi & SOP',link:'edukasi.html'});
     if (['Senior Staff','SPV','Owner','VIP'].includes(role)) {
         items.push({icon:'🍱',label:'Produk',link:'produk.html'});
         items.push({icon:'📈',label:'Rekapan',link:'rekap.html'});
@@ -655,7 +653,7 @@ function buildSidebar() {
             <span class="nav-label">${label}</span>
         </button>`;
     };
-    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html'];
+    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html','edukasi.html'];
     const PAGES_MGMT      = ['rekap.html','produk.html'];
     const PAGES_EXEC      = ['laporan.html','statistik.html','bahan_baku.html','hpp_produk.html','belanja.html','warehouse.html','salary_staff.html','customer_hoki.html'];
     const PAGES_VIP       = ['user.html','login_history.html'];
@@ -687,6 +685,8 @@ function buildSidebar() {
         + navItem('📦','Stok Harian','stok.html')
         + navItem('🚚','Restock Barang','restock.html')
         + navItem('🚀','Laporan Penjualan','laporan_staff.html');
+    let edukasiItem = navItem('📚','Edukasi & SOP','edukasi.html');
+    frontline += edukasiItem;
     let h = '';
     if (role !== 'Investor') {
         h += navGroup('frontline', 'Frontline', frontline, PAGES_FRONTLINE);
@@ -984,15 +984,34 @@ function closeSlipModalOutside(e) {
     if (e.target === document.getElementById('slipModal')) tutupSlipModal();
 }
 
-function unduhSlipPDF() {
-    html2pdf().set({ margin: 10, filename: 'Slip_Gaji.pdf', html2canvas: { scale: 2 }, jsPDF: { format: 'a4' } }).from(document.getElementById('slipPrintArea')).save();
-}
+
 
 function kirimWAPayroll() {
     const p = activeCalculatedPayroll[currentPayrollIndex];
     const start = document.getElementById('filterStartDate').value;
     const end = document.getElementById('filterEndDate').value;
-    let text = `*SLIP GAJI HOKI DIMSUM*\nNama: ${p.fullName}\nPeriode: ${start} - ${end}\nTotal: Rp ${p.total_gaji.toLocaleString('id-ID')}`;
+    const tglCetak = new Date().toLocaleString('id-ID');
+    
+    let text = `*📄 SLIP GAJI HOKI DIMSUM (CONFIDENTIAL)*\n`;
+    text += `===============================\n\n`;
+    text += `👤 *Nama:* ${p.fullName}\n`;
+    text += `🆔 *Username:* @${p.username}\n`;
+    text += `⭐ *Role:* ${p.role}\n`;
+    text += `🏢 *Cabang:* ${p.cabang || 'Multi-cabang'}\n`;
+    text += `📅 *Periode:* ${start} s/d ${end}\n`;
+    text += `⏰ *Waktu Cetak:* ${tglCetak}\n\n`;
+    
+    text += `*RINCIAN KOMPONEN GAJI:*\n`;
+    text += `-------------------------------\n`;
+    p.rincian.forEach(r => {
+        text += `- ${r.kategori} (x${r.qty}) : Rp ${r.subtotal.toLocaleString('id-ID')}\n`;
+    });
+    text += `-------------------------------\n`;
+    text += `💰 *TAKE HOME PAY (BERSIH): Rp ${p.total_gaji.toLocaleString('id-ID')}*\n\n`;
+    
+    text += `Terima kasih atas dedikasi dan kerja keras Anda bersama Hoki Dimsum 🙏\n\n`;
+    text += `_Dokumen ini resmi dan dicetak otomatis oleh Hoki POS System v3.0_`;
+    
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
 }
 

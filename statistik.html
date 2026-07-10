@@ -237,12 +237,37 @@
     @media (max-width: 844px) {
 
         .grid-dashboard {
-            grid-template-columns: 1fr;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            scroll-snap-type: x mandatory;
+            gap: 16px;
+            padding-bottom: 16px; /* give space for scrollbar */
+        }
+
+        .grid-dashboard .card-insight {
+            min-width: 85vw;
+            scroll-snap-align: center;
+            flex: 0 0 auto;
         }
 
         .filter-container {
             flex-direction: column;
             align-items: stretch;
+        }
+
+        .table-wrap {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            width: 100% !important;
+            display: block !important;
+        }
+
+        .loyal-table {
+            min-width: 650px !important;
+            width: max-content !important;
         }
 
     }
@@ -385,7 +410,7 @@
             <div class="card-insight card-statistik">
                 <h3>🏆 Top 10 Loyal Customers (Berdasarkan Histori Transaksi)</h3>
                 <div class="table-wrap">
-                    <table class="top-menu-table">
+                    <table class="top-menu-table loyal-table">
                         <thead>
                             <tr>
                                 <th style="padding: 8px 10px; font-size: 11px; color: var(--text-muted);">Peringkat</th>
@@ -448,7 +473,7 @@ function buildSidebar() {
             <span class="nav-label">${label}</span>
         </button>`;
     };
-    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html'];
+    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html','edukasi.html'];
     const PAGES_MGMT      = ['rekap.html','produk.html'];
     const PAGES_EXEC      = ['laporan.html','statistik.html','bahan_baku.html','hpp_produk.html','belanja.html','warehouse.html','salary_staff.html','customer_hoki.html'];
     const PAGES_VIP       = ['user.html','login_history.html'];
@@ -480,6 +505,8 @@ function buildSidebar() {
         + navItem('📦','Stok Harian','stok.html')
         + navItem('🚚','Restock Barang','restock.html')
         + navItem('🚀','Laporan Penjualan','laporan_staff.html');
+    let edukasiItem = navItem('📚','Edukasi & SOP','edukasi.html');
+    frontline += edukasiItem;
     let h = '';
     if (role !== 'Investor') {
         h += navGroup('frontline', 'Frontline', frontline, PAGES_FRONTLINE);
@@ -542,6 +569,7 @@ setInterval(updateClock, 1000);
 function buildMoreMenu() {
     const role = currentUser.role;
     const items = [{icon:'🚚',label:'Restock',link:'restock.html'}];
+    items.push({icon:'📚',label:'Edukasi & SOP',link:'edukasi.html'});
     if (['Senior Staff','SPV','Owner','VIP'].includes(role)) {
         items.push({icon:'📈',label:'Rekapan',link:'rekap.html'});
     }

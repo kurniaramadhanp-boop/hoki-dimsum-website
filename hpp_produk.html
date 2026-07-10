@@ -344,7 +344,7 @@ function buildSidebar() {
             <span class="nav-label">${label}</span>
         </button>`;
     };
-    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html'];
+    const PAGES_FRONTLINE = ['dashboard.html','history.html','stok.html','restock.html','laporan_staff.html','edukasi.html'];
     const PAGES_MGMT      = ['rekap.html','produk.html'];
     const PAGES_EXEC      = ['laporan.html','statistik.html','bahan_baku.html','hpp_produk.html','belanja.html','warehouse.html','salary_staff.html','customer_hoki.html'];
     const PAGES_VIP       = ['user.html','login_history.html'];
@@ -376,6 +376,8 @@ function buildSidebar() {
         + navItem('📦','Stok Harian','stok.html')
         + navItem('🚚','Restock Barang','restock.html')
         + navItem('🚀','Laporan Penjualan','laporan_staff.html');
+    let edukasiItem = navItem('📚','Edukasi & SOP','edukasi.html');
+    frontline += edukasiItem;
     let h = '';
     if (role !== 'Investor') {
         h += navGroup('frontline', 'Frontline', frontline, PAGES_FRONTLINE);
@@ -434,6 +436,7 @@ setInterval(updateClock, 1000);
 function buildMoreMenu() {
     const role = currentUser.role;
     const items = [{icon:'🚚',label:'Restock',link:'restock.html'}];
+    items.push({icon:'📚',label:'Edukasi & SOP',link:'edukasi.html'});
     if (['Senior Staff','SPV','Owner','VIP'].includes(role)) {
         items.push({icon:'🍱',label:'Produk',link:'produk.html'});
         items.push({icon:'📈',label:'Rekapan',link:'rekap.html'});

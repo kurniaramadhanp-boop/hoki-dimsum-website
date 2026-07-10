@@ -1,14 +1,16 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hoki POS - Bahan Baku</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>">
+    <title>Hoki POS - Edukasi & SOP</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=20260501">
     <style>
+    .main-content { overflow-x: hidden; }
+
     .form-card {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -19,36 +21,38 @@
     }
 
     .form-card h3 {
-        margin: 0 0 16px;
-        font-size: 14px;
-        font-weight: 700;
+        margin: 0 0 14px;
+        font-size: 15px;
+        font-weight: 800;
         color: var(--text);
     }
 
-    .grid-form {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
-        gap: 10px;
-        align-items: end;
-    }
-
-    .input-group {
+    .form-row {
         display: flex;
-        flex-direction: column;
-        gap: 4px;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: flex-end;
     }
 
-    .input-group label {
-        font-size: 10px;
-        font-weight: 700;
+    .form-group {
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
         color: var(--text-muted);
+        margin-bottom: 4px;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.5px;
     }
 
-    .input-group input {
-        margin: 0;
-        padding: 9px 12px;
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
         border: 1.5px solid var(--border);
         border-radius: var(--r-md);
         font-size: 13px;
@@ -56,17 +60,27 @@
         background: var(--surface);
         color: var(--text);
         outline: none;
+        box-sizing: border-box;
         transition: border-color 0.2s;
     }
 
-    .input-group input:focus { border-color: var(--red); }
-    .input-group input[readonly] {
-        background: var(--surface-2);
-        color: var(--red);
-        font-family: 'DM Mono', monospace;
-        font-weight: 700;
-    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: var(--red); }
 
+    .btn-tambah {
+        background: var(--red);
+        color: white;
+        border: none;
+        padding: 10px 18px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        font-family: 'DM Sans', sans-serif;
+        transition: filter 0.15s;
+    }
+    .btn-tambah:hover { filter: brightness(0.9); }
 
     .table-wrap {
         background: var(--surface);
@@ -75,18 +89,20 @@
         overflow: hidden;
         box-shadow: var(--sh-sm);
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .table-wrap table {
         width: 100%;
         border-collapse: collapse;
+        min-width: 500px;
     }
 
     .table-wrap thead th {
         background: var(--red);
         color: white;
-        padding: 10px 14px;
-        font-size: 11px;
+        padding: 8px 10px !important;
+        font-size: 11px !important;
         font-weight: 600;
         text-transform: uppercase;
         border: none;
@@ -94,28 +110,113 @@
     }
 
     .table-wrap tbody td {
-        padding: 10px 14px;
+        padding: 8px 10px !important;
         border-bottom: 1px solid var(--border);
-        font-size: 13px;
+        font-size: 12px !important;
         color: var(--text);
         border-top: none; border-left: none; border-right: none;
+        vertical-align: middle;
     }
 
     .table-wrap tbody tr:last-child td { border-bottom: none; }
     .table-wrap tbody tr:hover td { background: var(--red-soft); }
 
-    .mono { font-family: 'DM Mono', monospace; font-weight: 700; }
-    .red  { color: var(--red); }
-    .green { color: var(--green); }
+    .badge-kategori {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        background: var(--surface-2);
+        color: var(--text-muted);
+    }
+    .badge-kategori.kasir { background: rgba(25,118,210,0.1); color: #1976d2; }
+    .badge-kategori.dapur { background: rgba(230,81,0,0.1); color: #e65100; }
+    .badge-kategori.produk { background: rgba(46,125,50,0.1); color: #2e7d32; }
 
+    td:last-child {
+        white-space: nowrap !important;
+    }
 
+    /* ── PDF Viewer Modal ── */
+    .modal-pdf-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-pdf-overlay.open { display: flex; }
+
+    .modal-pdf {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        width: 95%;
+        max-width: 900px;
+        height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        animation: modalFadeIn 0.25s ease;
+        overflow: hidden;
+    }
+
+    @keyframes modalFadeIn {
+        from { opacity: 0; transform: translateY(20px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-pdf-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .modal-pdf-header h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: calc(100% - 80px);
+    }
+
+    .modal-pdf-close {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: var(--text-muted);
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+    .modal-pdf-close:hover { background: var(--surface-2); }
+
+    .modal-pdf iframe {
+        flex: 1;
+        width: 100%;
+        border: none;
+    }
 
     @media (max-width: 844px) {
-        .grid-form { grid-template-columns: 1fr 1fr; }
-        .grid-form button { grid-column: span 2; }
+        .page-body { padding-bottom: 80px; }
+        .modal-pdf { width: 100%; max-width: 100%; height: 100vh; border-radius: 0; }
+        .form-row { flex-direction: column; }
+        .form-group { min-width: unset; }
     }
     </style>
-  <script src="config.js"></script>
+    <script src="config.js"></script>
 </head>
 <body>
 
@@ -144,7 +245,7 @@
 <div class="main-content" id="mainContent">
     <header class="top-header">
         <div class="header-left">
-            <div class="header-page-title">🧂 Bahan Baku</div>
+            <div class="header-page-title">📚 Edukasi & SOP</div>
         </div>
         <div class="header-right">
             <div class="clock-pill">
@@ -155,53 +256,66 @@
     </header>
 
     <div class="page-body">
-        <div class="form-card">
-            <h3>➕ Tambah / Edit Bahan Baku</h3>
-            <div class="grid-form">
-                <div class="input-group">
-                    <label>Nama Bahan</label>
-                    <input type="text" id="bNama" placeholder="Cth: Mentai, Ayam, Tepung...">
+
+        <!-- Form Tambah (VIP Only) -->
+        <div class="form-card" id="formTambahEdukasi" style="display:none;">
+            <h3>➕ Tambah Materi SOP</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Judul Materi</label>
+                    <input type="text" id="inputJudul" placeholder="Contoh: SOP Buka Outlet Pagi">
                 </div>
-                <div class="input-group">
-                    <label>Harga (Rp)</label>
-                    <input type="number" id="bHarga" placeholder="50000" oninput="hitungHargaSatuan()">
+                <div class="form-group" style="max-width:200px;">
+                    <label>Kategori</label>
+                    <select id="inputKategori">
+                        <option value="SOP Kasir">SOP Kasir</option>
+                        <option value="SOP Dapur">SOP Dapur</option>
+                        <option value="Standard Produk">Standard Produk</option>
+                        <option value="SOP Umum">SOP Umum</option>
+                    </select>
                 </div>
-                <div class="input-group">
-                    <label>Banyak (Qty)</label>
-                    <input type="number" id="bBanyak" placeholder="1000" oninput="hitungHargaSatuan()">
+                <div class="form-group">
+                    <label>URL File PDF</label>
+                    <input type="url" id="inputUrl" placeholder="https://drive.google.com/file/d/...">
                 </div>
-                <div class="input-group">
-                    <label>Satuan</label>
-                    <input type="text" id="bSatuan" placeholder="gr / ml / pcs">
+                <div class="form-group" style="flex:0;">
+                    <label style="visibility:hidden;">x</label>
+                    <button class="btn-tambah" onclick="simpanEdukasi()">💾 Simpan</button>
                 </div>
-                <div class="input-group">
-                    <label>Harga / Satuan</label>
-                    <input type="text" id="bHargaSatuan" readonly placeholder="Auto">
-                </div>
-                <button class="btn-simpan" onclick="simpanBahan()">💾 Simpan</button>
             </div>
         </div>
 
+        <!-- Tabel List Dokumen -->
         <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
-                        <th>Nama Bahan</th>
-                        <th>Harga</th>
-                        <th>Banyak</th>
-                        <th>Satuan</th>
-                        <th>Harga / Satuan</th>
+                        <th>Judul Materi</th>
+                        <th>Kategori</th>
+                        <th>Diunggah Oleh</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
-                <tbody id="tabelBahan">
-                    <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-light);">Memuat data...</td></tr>
+                <tbody id="tabelEdukasi">
+                    <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-light);">Memuat dokumen edukasi...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
+<!-- PDF Viewer Modal -->
+<div class="modal-pdf-overlay" id="modalPdfViewer" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="modal-pdf">
+        <div class="modal-pdf-header">
+            <h3 id="pdfViewerTitle">Dokumen</h3>
+            <button class="modal-pdf-close" onclick="document.getElementById('modalPdfViewer').classList.remove('open')">✕</button>
+        </div>
+        <iframe id="pdfViewerFrame" src="about:blank"></iframe>
+    </div>
+</div>
+
+<!-- BOTTOM NAV -->
 <nav class="bottom-nav">
     <button class="bn-item" onclick="location.href='dashboard.html'"><span class="bn-icon">🛒</span><span class="bn-label">Kasir</span></button>
     <button class="bn-item" onclick="location.href='history.html'"><span class="bn-icon">📄</span><span class="bn-label">History</span></button>
@@ -210,7 +324,8 @@
     <button class="bn-item active" onclick="openSheet('moreSheet')"><span class="bn-icon">☰</span><span class="bn-label">Lainnya</span></button>
 </nav>
 
-<div class="sheet-overlay" id="moreSheet" onclick="closeSheetOutside(event,'moreSheet')">
+<!-- More Sheet -->
+<div class="sheet-overlay" id="moreSheet" onclick="closeSheetOutside(event, 'moreSheet')">
     <div class="bottom-sheet" onclick="event.stopPropagation()">
         <div class="sheet-handle"></div>
         <p style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Menu Lainnya</p>
@@ -219,13 +334,10 @@
 </div>
 
 <script>
-const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {user:'Guest', role:'Staff'};
+const currentUser = JSON.parse(localStorage.getItem('currentUser')) || {user:'Guest', role:'Staff', cabang:''};
 if (!currentUser.user) window.location.href = 'index.html';
-if (!['Owner','VIP'].includes(currentUser.role)) window.location.href = 'dashboard.html';
 
-let editId = null;
-let allBahan = [];
-
+/* ── SIDEBAR ── */
 function toggleSidebar() {
     const sb = document.getElementById('sidebar');
     const mc = document.getElementById('mainContent');
@@ -279,9 +391,8 @@ function buildSidebar() {
         + navItem('📄','History Transaksi','history.html')
         + navItem('📦','Stok Harian','stok.html')
         + navItem('🚚','Restock Barang','restock.html')
-        + navItem('🚀','Laporan Penjualan','laporan_staff.html');
-    let edukasiItem = navItem('📚','Edukasi & SOP','edukasi.html');
-    frontline += edukasiItem;
+        + navItem('🚀','Laporan Penjualan','laporan_staff.html')
+        + navItem('📚','Edukasi & SOP','edukasi.html');
     let h = '';
     if (role !== 'Investor') {
         h += navGroup('frontline', 'Frontline', frontline, PAGES_FRONTLINE);
@@ -339,8 +450,10 @@ setInterval(updateClock, 1000);
 
 function buildMoreMenu() {
     const role = currentUser.role;
-    const items = [{icon:'🚚',label:'Restock',link:'restock.html'}];
-    items.push({icon:'📚',label:'Edukasi & SOP',link:'edukasi.html'});
+    const items = [
+        {icon:'🚚',label:'Restock',link:'restock.html'},
+        {icon:'📚',label:'Edukasi & SOP',link:'edukasi.html'}
+    ];
     if (['Senior Staff','SPV','Owner','VIP'].includes(role)) {
         items.push({icon:'🍱',label:'Produk',link:'produk.html'});
         items.push({icon:'📈',label:'Rekapan',link:'rekap.html'});
@@ -374,99 +487,104 @@ function buildMoreMenu() {
 function openSheet(id) { if(id==='moreSheet') buildMoreMenu(); document.getElementById(id).classList.add('open'); }
 function closeSheetOutside(e,id) { if(e.target===document.getElementById(id)) document.getElementById(id).classList.remove('open'); }
 
-function hitungHargaSatuan() {
-    const harga  = parseFloat(document.getElementById('bHarga').value) || 0;
-    const banyak = parseFloat(document.getElementById('bBanyak').value) || 0;
-    const satuan = document.getElementById('bSatuan').value || '';
-    if (harga > 0 && banyak > 0) {
-        const hs = harga / banyak;
-        document.getElementById('bHargaSatuan').value = `Rp ${hs.toLocaleString('id-ID', {minimumFractionDigits:0, maximumFractionDigits:2})} / ${satuan || 'satuan'}`;
-    } else {
-        document.getElementById('bHargaSatuan').value = '';
-    }
-}
-
-async function muatBahan() {
+/* ── DATA EDUKASI ── */
+async function muatEdukasi() {
+    const tbody = document.getElementById('tabelEdukasi');
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-light);">Memuat dokumen...</td></tr>`;
     try {
-        const res = await fetch(`${API_BASE}?action=get_bahan_baku`);
-        allBahan  = await res.json();
-        renderTabel();
-    } catch(e) { console.error(e); }
-}
+        const res = await fetch(`${API_BASE}?action=get_edukasi`);
+        const json = await res.json();
+        if (json.status === 'success' && json.data.length > 0) {
+            tbody.innerHTML = json.data.map(d => {
+                let badgeClass = '';
+                const kat = (d.kategori || '').toLowerCase();
+                if (kat.includes('kasir')) badgeClass = 'kasir';
+                else if (kat.includes('dapur')) badgeClass = 'dapur';
+                else if (kat.includes('produk')) badgeClass = 'produk';
 
-function renderTabel() {
-    const tbody = document.getElementById('tabelBahan');
-    if (!allBahan.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-light);">Belum ada data bahan baku</td></tr>';
-        return;
-    }
-    tbody.innerHTML = allBahan.map(b => {
-        const hs = parseFloat(b.harga_satuan) || 0;
-        return `<tr>
-            <td><b>${b.nama}</b></td>
-            <td class="mono">Rp ${parseFloat(b.harga).toLocaleString('id-ID')}</td>
-            <td class="mono">${parseFloat(b.banyak).toLocaleString('id-ID')}</td>
-            <td>${b.satuan}</td>
-            <td class="mono red">Rp ${hs.toLocaleString('id-ID', {minimumFractionDigits:0, maximumFractionDigits:4})} <small style="color:var(--text-muted);font-weight:400;">/ ${b.satuan}</small></td>
-            <td>
-                <button class="btn-edit-icon" onclick="siapkanEdit(${b.id})" title="Edit Data">✏️</button>
-                <button class="btn-hapus-icon" onclick="hapusBahan(${b.id})" title="Hapus Data">🗑️</button>
-            </td>
-        </tr>`;
-    }).join('');
-}
+                let aksiHtml = `
+                    <button class="btn-detail-icon" onclick="viewPdf('${encodeURIComponent(d.url_pdf)}','${d.judul.replace(/'/g,"\\&#39;")}')" title="Lihat Dokumen">👁️</button>
+                    <button class="btn-edit-icon" onclick="window.open(decodeURIComponent('${encodeURIComponent(d.url_pdf)}'),'_blank')" title="Download">📥</button>`;
+                if (currentUser.role === 'VIP') {
+                    aksiHtml += ` <button class="btn-hapus-icon" onclick="hapusEdukasi(${d.id})" title="Hapus Dokumen">🗑️</button>`;
+                }
 
-function siapkanEdit(id) {
-    const b = allBahan.find(x => x.id == id);
-    if (!b) return;
-    editId = id;
-    document.getElementById('bNama').value   = b.nama;
-    document.getElementById('bHarga').value  = b.harga;
-    document.getElementById('bBanyak').value = b.banyak;
-    document.getElementById('bSatuan').value = b.satuan;
-    hitungHargaSatuan();
-    window.scrollTo({top:0, behavior:'smooth'});
-    document.querySelector('.btn-simpan').innerText = '💾 Update';
-}
-
-async function simpanBahan() {
-    const nama   = document.getElementById('bNama').value.trim();
-    const harga  = parseFloat(document.getElementById('bHarga').value) || 0;
-    const banyak = parseFloat(document.getElementById('bBanyak').value) || 0;
-    const satuan = document.getElementById('bSatuan').value.trim();
-
-    if (!nama || !harga || !banyak || !satuan) return toast.warning('Lengkapi semua field!');
-
-    const harga_satuan = harga / banyak;
-    const payload = { id: editId, nama, harga, banyak, satuan, harga_satuan };
-
-    try {
-        const res   = await fetch(`${API_BASE}?action=save_bahan_baku`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload)
-        });
-        const hasil = await res.json();
-        if (hasil.status === 'success') {
-            toast.success(editId ? 'Bahan diupdate!' : 'Bahan berhasil ditambah!');
-            editId = null;
-            ['bNama','bHarga','bBanyak','bSatuan','bHargaSatuan'].forEach(id => document.getElementById(id).value = '');
-            document.querySelector('.btn-simpan').innerText = '💾 Simpan';
-            muatBahan();
+                return `<tr>
+                    <td><b>${d.judul}</b></td>
+                    <td><span class="badge-kategori ${badgeClass}">${d.kategori}</span></td>
+                    <td style="color:var(--text-muted);font-size:11px;">${d.uploaded_by || '-'}</td>
+                    <td>${aksiHtml}</td>
+                </tr>`;
+            }).join('');
         } else {
-            toast.error('Gagal menyimpan!');
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-light);">Belum ada dokumen edukasi</td></tr>`;
         }
-    } catch(e) { toast.error('Gagal koneksi server!'); }
+    } catch(e) {
+        console.error('muatEdukasi:', e);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--red);">Gagal memuat data</td></tr>`;
+    }
 }
 
-async function hapusBahan(id) {
-    const ok = await showConfirm('Hapus bahan ini?', 'Ya, Hapus', 'Batal', '🗑️');
+function viewPdf(encodedUrl, title) {
+    let url = decodeURIComponent(encodedUrl);
+    
+    // Auto-Convert Google Drive URL to Embeddable Preview
+    if (url.includes('drive.google.com') && url.includes('/d/')) {
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match) {
+            url = `https://drive.google.com/file/d/${match[1]}/preview`;
+        }
+    } else if (!url.includes('drive.google.com')) {
+        url = url + '#toolbar=1';
+    }
+
+    document.getElementById('pdfViewerTitle').textContent = title;
+    document.getElementById('pdfViewerFrame').src = url;
+    document.getElementById('modalPdfViewer').classList.add('open');
+}
+
+async function simpanEdukasi() {
+    const judul = document.getElementById('inputJudul').value.trim();
+    const kategori = document.getElementById('inputKategori').value;
+    const url_pdf = document.getElementById('inputUrl').value.trim();
+
+    if (!judul || !url_pdf) return toast.warning('Judul dan URL PDF wajib diisi!');
+
+    try {
+        const res = await fetch(`${API_BASE}?action=save_edukasi`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ judul, kategori, url_pdf, uploaded_by: currentUser.user })
+        });
+        const json = await res.json();
+        if (json.status === 'success') {
+            toast.success('Dokumen berhasil ditambahkan!');
+            document.getElementById('inputJudul').value = '';
+            document.getElementById('inputUrl').value = '';
+            muatEdukasi();
+        } else {
+            toast.error(json.message || 'Gagal menyimpan dokumen.');
+        }
+    } catch(e) {
+        toast.error('Gagal koneksi ke server.');
+    }
+}
+
+async function hapusEdukasi(id) {
+    const ok = await showConfirm('Hapus dokumen ini dari pustaka?', 'Ya, Hapus', 'Batal', '🗑️');
     if (!ok) return;
     try {
-        await fetch(`${API_BASE}?action=del_bahan_baku&id=${id}`);
-        toast.success('Bahan dihapus!');
-        muatBahan();
-    } catch(e) { toast.error('Gagal menghapus!'); }
+        const res = await fetch(`${API_BASE}?action=del_edukasi&id=${id}&role=${currentUser.role}`);
+        const json = await res.json();
+        if (json.status === 'success') {
+            toast.success('Dokumen berhasil dihapus!');
+            muatEdukasi();
+        } else {
+            toast.error(json.message || 'Gagal menghapus dokumen.');
+        }
+    } catch(e) {
+        toast.error('Gagal koneksi ke server.');
+    }
 }
 
 async function logout() {
@@ -478,7 +596,17 @@ async function logout() {
     }
 }
 
-window.onload = () => { buildSidebar(); updateClock(); muatBahan(); };
+window.onload = () => {
+    buildSidebar();
+    updateClock();
+
+    // Tampilkan form tambah hanya untuk VIP
+    if (currentUser.role === 'VIP') {
+        document.getElementById('formTambahEdukasi').style.display = '';
+    }
+
+    muatEdukasi();
+};
 </script>
 
 <script src="session.js"></script>

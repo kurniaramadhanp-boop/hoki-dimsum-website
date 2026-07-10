@@ -414,6 +414,35 @@ if ($checkCol2 && $checkCol2->num_rows === 0) {
 // ── Migrasi data lama dari 'Umum / Non Member' menjadi 'No Cust' ──
 $conn->query("UPDATE transaksi SET pelanggan_nama = 'No Cust' WHERE pelanggan_nama = 'Umum / Non Member'");
 
+// ── Tabel Edukasi & SOP ──
+$conn->query("CREATE TABLE IF NOT EXISTS hoki_edukasi (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    judul VARCHAR(255) NOT NULL,
+    kategori VARCHAR(100) NOT NULL DEFAULT 'SOP Umum',
+    url_pdf TEXT NOT NULL,
+    uploaded_by VARCHAR(100) NOT NULL DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+
+// ── Tabel History Rekap Keuangan ──
+$conn->query("CREATE TABLE IF NOT EXISTS hoki_history_rekap (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tanggal_rekap TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    filter_cabang VARCHAR(100),
+    filter_tanggal VARCHAR(100),
+    pemasukan_json LONGTEXT,
+    pengeluaran_json LONGTEXT,
+    total_pemasukan INT,
+    total_pengeluaran INT,
+    total_setoran INT,
+    petugas VARCHAR(100)
+)");
+try {
+    $conn->query("ALTER TABLE hoki_history_rekap ADD COLUMN total_setoran INT AFTER total_pengeluaran");
+} catch (Exception $e) {
+    // Abaikan jika kolom sudah ada
+}
+
 // ── Bersihkan buffer sebelum mengirim JSON ──
 ob_end_clean();
 
@@ -1730,12 +1759,12 @@ switch ($action) {
     case 'get_customer_loyalty':
         $sql = "
             SELECT 
-                pelanggan_nama as nama,
+                pelanggan_telepon as telepon,
                 COUNT(id) as total_order,
                 COALESCE(SUM(total), 0) as total_belanja
             FROM transaksi
-            WHERE pelanggan_nama != 'No Cust' AND pelanggan_nama != ''
-            GROUP BY pelanggan_nama
+            WHERE pelanggan_telepon IS NOT NULL AND pelanggan_telepon != ''
+            GROUP BY pelanggan_telepon
         ";
         $res = $conn->query($sql);
         $data = [];
@@ -1812,6 +1841,97 @@ switch ($action) {
         
         $sql = "DELETE FROM hoki_pelanggan WHERE id=$id";
         if ($conn->query($sql)) {
+            echo json_encode(["status"=>"success"]);
+        } else {
+            echo json_encode(["status"=>"error","message"=>$conn->error]);
+        }
+        break;
+
+    // ── EDUKASI & SOP ─────────────────────────────────
+    case 'get_edukasi':
+        $res = $conn->query("SELECT * FROM hoki_edukasi ORDER BY id DESC");
+        $data = [];
+        if ($res) { while ($r = $res->fetch_assoc()) $data[] = $r; }
+        echo json_encode(["status"=>"success","data"=>$data]);
+        break;
+
+    case 'save_edukasi':
+        $judul = $conn->real_escape_string(trim($input['judul'] ?? ''));
+        $kategori = $conn->real_escape_string(trim($input['kategori'] ?? 'SOP Umum'));
+        $url_pdf = $conn->real_escape_string(trim($input['url_pdf'] ?? ''));
+        $uploaded_by = $conn->real_escape_string(trim($input['uploaded_by'] ?? ''));
+        if (!$judul || !$url_pdf) {
+            echo json_encode(["status"=>"error","message"=>"Judul dan URL PDF wajib diisi."]);
+            break;
+        }
+        $sql = "INSERT INTO hoki_edukasi (judul, kategori, url_pdf, uploaded_by) VALUES ('$judul','$kategori','$url_pdf','$uploaded_by')";
+        if ($conn->query($sql)) {
+            echo json_encode(["status"=>"success","id"=>$conn->insert_id]);
+        } else {
+            echo json_encode(["status"=>"error","message"=>$conn->error]);
+        }
+        break;
+
+    case 'del_edukasi':
+        $id = (int)($_GET['id'] ?? 0);
+        $role = $_GET['role'] ?? '';
+        if ($role !== 'VIP') {
+            echo json_encode(["status"=>"error","message"=>"Hanya VIP yang dapat menghapus dokumen."]);
+            break;
+        }
+        if (!$id) {
+            echo json_encode(["status"=>"error","message"=>"ID dokumen tidak valid."]);
+            break;
+        }
+        if ($conn->query("DELETE FROM hoki_edukasi WHERE id=$id")) {
+            echo json_encode(["status"=>"success"]);
+        } else {
+            echo json_encode(["status"=>"error","message"=>$conn->error]);
+        }
+        break;
+
+    // ── HISTORY REKAP KEUANGAN ────────────────────────
+    case 'save_rekap_keuangan':
+        $filter_cabang = $conn->real_escape_string($input['filter_cabang'] ?? '');
+        $filter_tanggal = $conn->real_escape_string($input['filter_tanggal'] ?? '');
+        $pemasukan_json = $conn->real_escape_string(json_encode($input['pemasukan'] ?? []));
+        $pengeluaran_json = $conn->real_escape_string(json_encode($input['pengeluaran'] ?? []));
+        $total_pemasukan = (int)($input['total_pemasukan'] ?? 0);
+        $total_pengeluaran = (int)($input['total_pengeluaran'] ?? 0);
+        $total_setoran = $total_pemasukan - $total_pengeluaran;
+        $petugas = $conn->real_escape_string($input['petugas'] ?? '');
+
+        $sql = "INSERT INTO hoki_history_rekap (filter_cabang, filter_tanggal, pemasukan_json, pengeluaran_json, total_pemasukan, total_pengeluaran, total_setoran, petugas) 
+                VALUES ('$filter_cabang', '$filter_tanggal', '$pemasukan_json', '$pengeluaran_json', $total_pemasukan, $total_pengeluaran, $total_setoran, '$petugas')";
+        if ($conn->query($sql)) {
+            echo json_encode(["status"=>"success"]);
+        } else {
+            echo json_encode(["status"=>"error","message"=>$conn->error]);
+        }
+        break;
+
+    case 'get_history_rekap':
+        $res = $conn->query("SELECT * FROM hoki_history_rekap ORDER BY id DESC");
+        $data = [];
+        if ($res) {
+            while ($r = $res->fetch_assoc()) {
+                $r['pemasukan'] = json_decode($r['pemasukan_json'], true);
+                $r['pengeluaran'] = json_decode($r['pengeluaran_json'], true);
+                unset($r['pemasukan_json']);
+                unset($r['pengeluaran_json']);
+                $data[] = $r;
+            }
+        }
+        echo json_encode(["status"=>"success","data"=>$data]);
+        break;
+
+    case 'del_history_rekap':
+        $id = (int)($_GET['id'] ?? 0);
+        if (!$id) {
+            echo json_encode(["status"=>"error","message"=>"ID rekap tidak valid."]);
+            break;
+        }
+        if ($conn->query("DELETE FROM hoki_history_rekap WHERE id=$id")) {
             echo json_encode(["status"=>"success"]);
         } else {
             echo json_encode(["status"=>"error","message"=>$conn->error]);
