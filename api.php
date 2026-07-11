@@ -420,9 +420,11 @@ $conn->query("CREATE TABLE IF NOT EXISTS hoki_edukasi (
     judul VARCHAR(255) NOT NULL,
     kategori VARCHAR(100) NOT NULL DEFAULT 'SOP Umum',
     url_pdf TEXT NOT NULL,
+    role_access VARCHAR(255) DEFAULT 'Semua',
     uploaded_by VARCHAR(100) NOT NULL DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
+
 
 // ── Tabel History Rekap Keuangan ──
 $conn->query("CREATE TABLE IF NOT EXISTS hoki_history_rekap (
@@ -1888,7 +1890,13 @@ switch ($action) {
 
     // ── EDUKASI & SOP ─────────────────────────────────
     case 'get_edukasi':
-        $res = $conn->query("SELECT * FROM hoki_edukasi ORDER BY id DESC");
+        $role = $conn->real_escape_string($_GET['role'] ?? '');
+        $sql = "SELECT * FROM hoki_edukasi";
+        if ($role !== 'VIP' && $role !== 'Owner') {
+            $sql .= " WHERE role_access = 'Semua' OR FIND_IN_SET('$role', role_access)";
+        }
+        $sql .= " ORDER BY id DESC";
+        $res = $conn->query($sql);
         $data = [];
         if ($res) { while ($r = $res->fetch_assoc()) $data[] = $r; }
         echo json_encode(["status"=>"success","data"=>$data]);
@@ -1898,12 +1906,13 @@ switch ($action) {
         $judul = $conn->real_escape_string(trim($input['judul'] ?? ''));
         $kategori = $conn->real_escape_string(trim($input['kategori'] ?? 'SOP Umum'));
         $url_pdf = $conn->real_escape_string(trim($input['url_pdf'] ?? ''));
+        $role_access = $conn->real_escape_string(trim($input['role_access'] ?? 'Semua'));
         $uploaded_by = $conn->real_escape_string(trim($input['uploaded_by'] ?? ''));
         if (!$judul || !$url_pdf) {
             echo json_encode(["status"=>"error","message"=>"Judul dan URL PDF wajib diisi."]);
             break;
         }
-        $sql = "INSERT INTO hoki_edukasi (judul, kategori, url_pdf, uploaded_by) VALUES ('$judul','$kategori','$url_pdf','$uploaded_by')";
+        $sql = "INSERT INTO hoki_edukasi (judul, kategori, url_pdf, role_access, uploaded_by) VALUES ('$judul','$kategori','$url_pdf','$role_access','$uploaded_by')";
         if ($conn->query($sql)) {
             echo json_encode(["status"=>"success","id"=>$conn->insert_id]);
         } else {

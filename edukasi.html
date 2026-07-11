@@ -278,6 +278,15 @@
                     <label>URL File PDF</label>
                     <input type="url" id="inputUrl" placeholder="https://drive.google.com/file/d/...">
                 </div>
+                <div class="form-group" style="max-width:200px;">
+                    <label>Akses Role</label>
+                    <select id="inputRoleAccess">
+                        <option value="Semua">Semua Role (Staff+)</option>
+                        <option value="Senior Staff,SPV,Owner,VIP">Senior Staff Keatas</option>
+                        <option value="SPV,Owner,VIP">SPV Keatas</option>
+                        <option value="Owner,VIP">Hanya Owner & VIP</option>
+                    </select>
+                </div>
                 <div class="form-group" style="flex:0;">
                     <label style="visibility:hidden;">x</label>
                     <button class="btn-tambah" onclick="simpanEdukasi()">💾 Simpan</button>
@@ -492,7 +501,7 @@ async function muatEdukasi() {
     const tbody = document.getElementById('tabelEdukasi');
     tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-light);">Memuat dokumen...</td></tr>`;
     try {
-        const res = await fetch(`${API_BASE}?action=get_edukasi`);
+        const res = await fetch(`${API_BASE}?action=get_edukasi&role=${encodeURIComponent(currentUser.role)}`);
         const json = await res.json();
         if (json.status === 'success' && json.data.length > 0) {
             tbody.innerHTML = json.data.map(d => {
@@ -502,6 +511,11 @@ async function muatEdukasi() {
                 else if (kat.includes('dapur')) badgeClass = 'dapur';
                 else if (kat.includes('produk')) badgeClass = 'produk';
 
+                let gembok = '';
+                if (d.role_access && d.role_access !== 'Semua' && (currentUser.role === 'VIP' || currentUser.role === 'Owner')) {
+                    gembok = `<span style="font-size:10px;background:var(--red-light);color:var(--red);padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle;" title="Akses: ${d.role_access}">🔒 Terbatas</span>`;
+                }
+
                 let aksiHtml = `
                     <button class="btn-detail-icon" onclick="viewPdf('${encodeURIComponent(d.url_pdf)}','${d.judul.replace(/'/g,"\\&#39;")}')" title="Lihat Dokumen">👁️</button>
                     <button class="btn-edit-icon" onclick="window.open(decodeURIComponent('${encodeURIComponent(d.url_pdf)}'),'_blank')" title="Download">📥</button>`;
@@ -510,7 +524,7 @@ async function muatEdukasi() {
                 }
 
                 return `<tr>
-                    <td><b>${d.judul}</b></td>
+                    <td><b>${d.judul}</b>${gembok}</td>
                     <td><span class="badge-kategori ${badgeClass}">${d.kategori}</span></td>
                     <td style="color:var(--text-muted);font-size:11px;">${d.uploaded_by || '-'}</td>
                     <td>${aksiHtml}</td>
@@ -547,6 +561,7 @@ async function simpanEdukasi() {
     const judul = document.getElementById('inputJudul').value.trim();
     const kategori = document.getElementById('inputKategori').value;
     const url_pdf = document.getElementById('inputUrl').value.trim();
+    const role_access = document.getElementById('inputRoleAccess').value;
 
     if (!judul || !url_pdf) return toast.warning('Judul dan URL PDF wajib diisi!');
 
@@ -554,13 +569,14 @@ async function simpanEdukasi() {
         const res = await fetch(`${API_BASE}?action=save_edukasi`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ judul, kategori, url_pdf, uploaded_by: currentUser.user })
+            body: JSON.stringify({ judul, kategori, url_pdf, role_access, uploaded_by: currentUser.user })
         });
         const json = await res.json();
         if (json.status === 'success') {
             toast.success('Dokumen berhasil ditambahkan!');
             document.getElementById('inputJudul').value = '';
             document.getElementById('inputUrl').value = '';
+            document.getElementById('inputRoleAccess').value = 'Semua';
             muatEdukasi();
         } else {
             toast.error(json.message || 'Gagal menyimpan dokumen.');
