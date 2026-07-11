@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoki POS - Cache Cleaner</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4ef; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .box { background: white; border-radius: 16px; padding: 32px; max-width: 420px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
+        h2 { color: #d32f2f; margin-bottom: 8px; }
+        p { color: #666; font-size: 14px; margin-bottom: 20px; }
+        .log { background: #f9f9f6; border: 1px solid #e8e8e2; border-radius: 8px; padding: 16px; text-align: left; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; margin-bottom: 20px; }
+        .log div { margin-bottom: 4px; }
+        .ok { color: #16a34a; }
+        .warn { color: #d97706; }
+        .err { color: #d32f2f; }
+        .done { color: #16a34a; font-weight: 700; font-size: 16px; margin-top: 16px; }
+        a { display: inline-block; margin-top: 16px; background: #d32f2f; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="box">
+    <h2>🧹 Cache Cleaner</h2>
+    <p>Membersihkan sisa-sisa Service Worker dan Cache dari eksperimen PWA...</p>
+    <div class="log" id="log"></div>
+    <div id="status"></div>
+</div>
+<script>
+const log = document.getElementById('log');
+const status = document.getElementById('status');
+
+function addLog(msg, cls) {
+    const d = document.createElement('div');
+    d.className = cls || '';
+    d.textContent = msg;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+}
+
+async function cleanAll() {
+    addLog('🔍 Memeriksa Service Worker...', '');
+    
+    // 1. Unregister all service workers
+    if ('serviceWorker' in navigator) {
+        try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            if (registrations.length > 0) {
+                for (const reg of registrations) {
+                    await reg.unregister();
+                    addLog('✅ Service Worker dihapus: ' + reg.scope, 'ok');
+                }
+            } else {
+                addLog('ℹ️ Tidak ada Service Worker aktif', 'warn');
+            }
+        } catch(e) {
+            addLog('⚠️ Error cek SW: ' + e.message, 'err');
+        }
+    } else {
+        addLog('ℹ️ Browser tidak mendukung SW', 'warn');
+    }
+    
+    // 2. Delete all caches
+    addLog('🔍 Memeriksa Cache Storage...', '');
+    if ('caches' in window) {
+        try {
+            const names = await caches.keys();
+            if (names.length > 0) {
+                for (const name of names) {
+                    await caches.delete(name);
+                    addLog('✅ Cache dihapus: ' + name, 'ok');
+                }
+            } else {
+                addLog('ℹ️ Tidak ada cache tersimpan', 'warn');
+            }
+        } catch(e) {
+            addLog('⚠️ Error cek cache: ' + e.message, 'err');
+        }
+    } else {
+        addLog('ℹ️ Browser tidak mendukung Cache API', 'warn');
+    }
+    
+    addLog('', '');
+    addLog('🎉 PEMBERSIHAN SELESAI!', 'ok');
+    
+    status.innerHTML = '<div class="done">✅ Semua bersih!</div><a href="index.html">Kembali ke Login →</a>';
+}
+
+cleanAll();
+</script>
+</body>
+</html>
