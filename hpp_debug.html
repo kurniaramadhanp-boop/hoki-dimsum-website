@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPP Diagnostic</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4ef; padding: 20px; }
+        h2 { color: #d32f2f; margin-bottom: 12px; }
+        h3 { color: #333; margin: 20px 0 8px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; background: white; }
+        th { background: #d32f2f; color: white; padding: 8px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+        .match { background: #e8f5e9; }
+        .mismatch { background: #ffebee; font-weight: bold; }
+        .mono { font-family: monospace; }
+        pre { background: #222; color: #0f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px; margin-bottom: 16px; }
+    </style>
+    <script src="config.js"></script>
+</head>
+<body>
+<h2>🔬 HPP Diagnostic Tool</h2>
+<p>Membandingkan data HPP dari <b>get_produk</b> vs <b>get_hpp_produk</b></p>
+
+<h3>📦 Raw Response: get_hpp_produk</h3>
+<pre id="rawHPP">Loading...</pre>
+
+<h3>📦 Raw Response: get_produk (first 3 items)</h3>
+<pre id="rawProduk">Loading...</pre>
+
+<h3>📊 Perbandingan HPP per SKU</h3>
+<table>
+    <thead>
+        <tr>
+            <th>SKU</th>
+            <th>Nama (produk)</th>
+            <th>HPP di tabel produk (p.hpp)</th>
+            <th>HPP dari hpp_produk (harga_pokok)</th>
+            <th>HPP dihitung manual (Σ bahan×qty)</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody id="tabelDiag"></tbody>
+</table>
+
+<h3>🧪 Detail Bahan per HPP Produk</h3>
+<div id="detailBahan"></div>
+
+<script>
+async function diagnose() {
+    const [resProduk, resHPP] = await Promise.all([
+        fetch(`${API_BASE}?action=get_produk`),
+        fetch(`${API_BASE}?action=get_hpp_produk`)
+    ]);
+    
+    const produkList = await resProduk.json();
+    const hppList = await resHPP.json();
+    
+    // Show raw data
+    document.getElementById('rawHPP').textContent = JSON.stringify(hppList.slice(0, 3), null, 2);
+    document.getElementById('rawProduk').textContent = JSON.stringify(produkList.slice(0, 3), null, 2);
+    
+    // Build HPP map by SKU
+    const hppMap = {};
+    hppList.forEach(h => {
+        hppMap[h.sku] = h;
+    });
+    
+    // Compare
+    const tbody = document.getElementById('tabelDiag');
+    let html = '';
+    
+    produkList.forEach(p => {
+        const skuUpper = (p.sku || '').toUpperCase();
+        const hppEntry = hppMap[p.sku] || hppMap[skuUpper] || null;
+        
+        const hppProduk = parseInt(p.hpp) || 0;
+        const hppFromTable = hppEntry ? parseFloat(hppEntry.harga_pokok) : '-';
+        
+        // Calculate manually from detail
+        let manualCalc = '-';
+        if (hppEntry && hppEntry.detail_json) {
+            try {
+                const details = JSON.parse(hppEntry.detail_json);
+                let total = 0;
+                details.forEach(d => {
+                    total += (parseFloat(d.harga_satuan) || 0) * (parseFloat(d.qty) || 0);
+                });
+                manualCalc = Math.round(total);
+            } catch(e) { manualCalc = 'ERROR: ' + e.message; }
+        }
+        
+        const isMatch = hppFromTable !== '-' && Math.abs(hppProduk - hppFromTable) < 1;
+        const cls = hppFromTable === '-' ? '' : (isMatch ? 'match' : 'mismatch');
+        
+        html += `<tr class="${cls}">
+            <td class="mono">${p.sku || '-'}</td>
+            <td>${p.nama}</td>
+            <td class="mono">Rp ${hppProduk.toLocaleString('id-ID')}</td>
+            <td class="mono">${hppFromTable !== '-' ? 'Rp ' + parseFloat(hppFromTable).toLocaleString('id-ID') : '-'}</td>
+            <td class="mono">${manualCalc !== '-' ? 'Rp ' + manualCalc.toLocaleString('id-ID') : '-'}</td>
+            <td>${hppFromTable === '-' ? '⚪ No HPP formula' : (isMatch ? '✅ Match' : '❌ MISMATCH')}</td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Detail bahan per HPP
+    let detailHTML = '';
+    hppList.forEach(h => {
+        const details = JSON.parse(h.detail_json || '[]');
+        let total = 0;
+        detailHTML += `<h4 style="margin-top:16px;">📋 ${h.nama_produk} (SKU: ${h.sku}) — harga_pokok dari API: Rp ${parseFloat(h.harga_pokok).toLocaleString('id-ID')}</h4>`;
+        detailHTML += '<table><thead><tr><th>Bahan</th><th>Harga Satuan</th><th>Qty</th><th>Subtotal (saved)</th><th>Subtotal (realtime)</th></tr></thead><tbody>';
+        details.forEach(d => {
+            const realtime = (parseFloat(d.harga_satuan) || 0) * (parseFloat(d.qty) || 0);
+            total += realtime;
+            detailHTML += `<tr>
+                <td>${d.nama || 'ID:'+d.bahan_id}</td>
+                <td class="mono">Rp ${parseFloat(d.harga_satuan || 0).toLocaleString('id-ID')}</td>
+                <td class="mono">${d.qty} ${d.satuan || ''}</td>
+                <td class="mono">Rp ${parseFloat(d.subtotal || 0).toLocaleString('id-ID')}</td>
+                <td class="mono">Rp ${realtime.toLocaleString('id-ID')}</td>
+            </tr>`;
+        });
+        detailHTML += `<tr style="font-weight:bold;background:#fff3e0;"><td colspan="4">TOTAL KALKULASI MANUAL:</td><td class="mono">Rp ${Math.round(total).toLocaleString('id-ID')}</td></tr>`;
+        detailHTML += '</tbody></table>';
+    });
+    document.getElementById('detailBahan').innerHTML = detailHTML;
+}
+
+diagnose();
+</script>
+</body>
+</html>
