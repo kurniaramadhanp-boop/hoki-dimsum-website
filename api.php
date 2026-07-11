@@ -684,13 +684,15 @@ switch ($action) {
                     $real_hpp += (float)($d['harga_satuan'] ?? 0) * (float)($d['qty'] ?? 0);
                 }
             }
-            $hpp_map[$hp['sku']] = $real_hpp;
+            $hpp_map[$hp['sku']] = round($real_hpp); // Bulatkan agar tidak ada desimal
         }
         
         // Override product HPP dynamically if SKU matches
         foreach ($produk_list as &$p) {
             if (!empty($p['sku']) && isset($hpp_map[$p['sku']])) {
                 $p['hpp'] = $hpp_map[$p['sku']];
+            } else {
+                $p['hpp'] = round((float)($p['hpp'] ?? 0));
             }
         }
         unset($p);
@@ -1183,7 +1185,7 @@ switch ($action) {
             foreach ($details as $d) {
                 $real_hpp += (float)($d['harga_satuan'] ?? 0) * (float)($d['qty'] ?? 0);
             }
-            $h['harga_pokok'] = $real_hpp;
+            $h['harga_pokok'] = round($real_hpp); // Bulatkan agar tidak ada desimal
             $h['detail_json'] = json_encode($details);
         }
         unset($h);
