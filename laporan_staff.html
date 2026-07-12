@@ -1097,7 +1097,7 @@ function bukaDetail(rid) {
 
     // Footer Total
     const totalHTML = `Total Omset: <span id="detTotal">Rp ${parseInt(data.grand_total).toLocaleString('id-ID')}</span>`;
-    const saveBtn = `<button class="btn-edit-icon" onclick="saveEditDetail()" title="Edit Data">✏️</button>`;
+    const saveBtn = `<div style="margin-top: 16px;"><button class="btn-simpan-laporan" onclick="saveEditDetail()">💾 Update Laporan</button></div>`;
     
     document.getElementById('detGrandTotal').innerHTML = totalHTML + (currentUser.role !== 'Staff' ? saveBtn : '');
     document.getElementById('detailOverlay').style.display = 'flex';

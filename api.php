@@ -1315,10 +1315,11 @@ switch ($action) {
     case 'save_warehouse_masuk':
         $sku     = $conn->real_escape_string($input['sku']     ?? '');
         $masuk   = (float)($input['masuk']   ?? 0);
+        $keluar  = (float)($input['keluar']  ?? 0);
         $catatan = $conn->real_escape_string($input['catatan'] ?? '');
         $tgl     = $conn->real_escape_string($input['tgl']     ?? date('Y-m-d'));
-        if (!$sku || $masuk <= 0) { echo json_encode(['status'=>'error','message'=>'Data tidak valid']); break; }
-        $ok = $conn->query("INSERT INTO warehouse_ledger (tgl, sku, masuk, catatan) VALUES ('$tgl','$sku',$masuk,'$catatan')");
+        if (!$sku || ($masuk <= 0 && $keluar <= 0)) { echo json_encode(['status'=>'error','message'=>'Data tidak valid']); break; }
+        $ok = $conn->query("INSERT INTO warehouse_ledger (tgl, sku, masuk, keluar, catatan) VALUES ('$tgl','$sku',$masuk,$keluar,'$catatan')");
         echo json_encode($ok ? ['status'=>'success'] : ['status'=>'error','message'=>$conn->error]);
         break;
 
