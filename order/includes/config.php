@@ -5,10 +5,27 @@
  */
 
 // --- Database ---
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'hokidimsum_order');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+// Auto-detect lokal (XAMPP) vs production (Hostinger) - konvensi sama seperti api.php
+$isDev = (
+    ($_SERVER['HTTP_HOST'] ?? '') === 'localhost' ||
+    ($_SERVER['HTTP_HOST'] ?? '') === '127.0.0.1' ||
+    substr($_SERVER['HTTP_HOST'] ?? '', 0, 8) === '192.168.' ||
+    strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false ||
+    strpos($_SERVER['HTTP_HOST'] ?? '', ':') !== false ||
+    file_exists(__DIR__ . '/../../dev.flag')
+);
+
+if ($isDev) {
+    define('DB_HOST', 'localhost');
+    define('DB_NAME', 'hokidimsum_order');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
+} else {
+    define('DB_HOST', 'localhost');
+    define('DB_NAME', 'u173485424_Order_Hoki');
+    define('DB_USER', 'u173485424_Order_Hoki');
+    define('DB_PASS', 'OrderHoki95');
+}
 
 // --- URL Dasar ---
 // Lokal (XAMPP): http://localhost/Order Hoki Dimsum
@@ -33,4 +50,4 @@ date_default_timezone_set('Asia/Jakarta');
 
 // --- Error reporting (matikan display_errors di produksi) ---
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
+ini_set('display_errors', $isDev ? '1' : '0');
