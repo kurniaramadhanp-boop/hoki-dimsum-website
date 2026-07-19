@@ -132,8 +132,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_product']) && 
     $chkDel = db()->prepare('SELECT pos_sku FROM products WHERE id = ?');
     $chkDel->execute([$delId]);
     $delRow = $chkDel->fetch();
+
+    $orderCountStmt = db()->prepare('SELECT COUNT(*) FROM order_items WHERE product_id = ?');
+    $orderCountStmt->execute([$delId]);
+    $sudahPernahDipesan = (int)$orderCountStmt->fetchColumn() > 0;
+
     if (!empty($delRow['pos_sku'])) {
         flash('error', 'Produk ini tersinkron dari Master Produk POS. Hapus dari POS, atau nonaktifkan saja di sini (edit → hilangkan centang Tersedia).');
+    } elseif ($sudahPernahDipesan) {
+        flash('error', 'Produk ini tidak bisa dihapus karena sudah pernah dipesan (ada riwayat order). Nonaktifkan saja (edit → hilangkan centang Tersedia).');
     } else {
         db()->prepare('DELETE FROM products WHERE id = ?')->execute([$delId]);
         flash('success', 'Produk berhasil dihapus.');
