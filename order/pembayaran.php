@@ -1,0 +1,99 @@
+<?php
+require_once __DIR__ . '/includes/cart.php';
+$currentPage = 'pembayaran.php';
+
+$orderCode = $_GET['order'] ?? '';
+$stmt = db()->prepare("SELECT o.*, b.nama AS branch_nama, b.wa_number AS branch_wa FROM orders o JOIN branches b ON b.id = o.branch_id WHERE o.order_code = ?");
+$stmt->execute([$orderCode]);
+$order = $stmt->fetch();
+
+if (!$order) {
+    http_response_code(404);
+    $pageTitle = 'Order Tidak Ditemukan — ' . APP_NAME;
+    require __DIR__ . '/includes/header.php';
+    echo '<div class="section container text-center"><h1>Order tidak ditemukan</h1><a href="' . BASE_URL . '/menu.php" class="btn btn-primary">Kembali ke Menu</a></div>';
+    require __DIR__ . '/includes/footer.php';
+    exit;
+}
+
+$pageTitle = 'Pembayaran ' . $order['order_code'] . ' — ' . APP_NAME;
+
+$waTarget = $order['branch_wa'] ?: get_setting('wa_pusat', '');
+$pesan = "Halo, saya konfirmasi pembayaran.\n"
+    . "Order: {$order['order_code']}\n"
+    . "Nama: {$order['nama_customer']}\n"
+    . "Total: " . rupiah($order['total_bayar']) . "\n"
+    . "Cabang: {$order['branch_nama']}\n"
+    . "Mohon dicek ya, terima kasih.";
+$waLink = wa_link($waTarget, $pesan);
+
+$qrisImage = get_setting('qris_image_path', '');
+$noRekening = get_setting('no_rekening', '');
+$namaBank = get_setting('nama_bank', '');
+$namaRekening = get_setting('nama_rekening', '');
+
+require __DIR__ . '/includes/header.php';
+?>
+
+<div class="section">
+  <div class="container" style="max-width:520px;">
+    <div class="pay-code">
+      <span class="eyebrow">Kode Order</span>
+      <div class="code"><?= e($order['order_code']) ?></div>
+    </div>
+
+    <div class="total-highlight">
+      <div class="note">Total yang harus dibayar</div>
+      <div class="amount"><?= rupiah($order['total_bayar']) ?></div>
+      <div class="note">Subtotal <?= rupiah($order['subtotal']) ?> + kode unik <?= (int)$order['kode_unik'] ?></div>
+    </div>
+
+    <div class="unique-code-hint">
+      ⚠️ Transfer <strong>PAS</strong> sesuai nominal di atas ya, termasuk 3 digit terakhir (kode unik). Ini membantu kami mengecek pembayaranmu lebih cepat!
+    </div>
+
+    <?php if ($qrisImage): ?>
+    <div class="qris-box">
+      <img src="<?= UPLOAD_URL . '/' . e($qrisImage) ?>" alt="QRIS Hoki Dimsum">
+      <p class="form-hint mb-0">Scan QRIS di atas menggunakan aplikasi e-wallet atau m-banking favoritmu.</p>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($noRekening): ?>
+    <div class="bank-box">
+      <div class="bank-row"><span>Bank</span><strong><?= e($namaBank) ?></strong></div>
+      <div class="bank-row"><span>No. Rekening</span><strong><?= e($noRekening) ?></strong></div>
+      <div class="bank-row"><span>Atas Nama</span><strong><?= e($namaRekening) ?></strong></div>
+    </div>
+    <?php endif; ?>
+
+    <a href="<?= e($waLink) ?>" target="_blank" rel="noopener" class="btn btn-wa btn-block" style="margin-bottom:12px;">
+      💬 Konfirmasi Pembayaran via WhatsApp
+    </a>
+    <a href="<?= BASE_URL ?>/cek-status.php?order=<?= urlencode($order['order_code']) ?>" class="btn btn-outline btn-block">
+      🔍 Cek Status Order Ini
+    </a>
+
+    <div class="panel-like" style="margin-top:28px;">
+      <h3 style="font-size:14px; margin-bottom:10px;">Ringkasan Pesanan</h3>
+      <?php
+      $itemStmt = db()->prepare("SELECT * FROM order_items WHERE order_id = ?");
+      $itemStmt->execute([$order['id']]);
+      foreach ($itemStmt->fetchAll() as $it):
+      ?>
+      <div class="order-item-row">
+        <span><?= e($it['nama_produk_snapshot']) ?> x<?= $it['qty'] ?></span>
+        <span><?= rupiah($it['harga_snapshot'] * $it['qty']) ?></span>
+      </div>
+      <?php endforeach; ?>
+      <div class="order-item-row" style="border-bottom:none;">
+        <span>Cabang</span><span><?= e($order['branch_nama']) ?></span>
+      </div>
+      <div class="order-item-row" style="border-bottom:none;">
+        <span>Ambil</span><span><?= date('d M Y', strtotime($order['pickup_date'])) ?>, <?= substr($order['pickup_time'], 0, 5) ?></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<?php require __DIR__ . '/includes/footer.php'; ?>
