@@ -1,10 +1,10 @@
 -- =========================================================
 -- Hoki Dimsum - Order Online Database Schema
--- Import via phpMyAdmin (atau: mysql -u root -p < schema.sql)
+-- Import via phpMyAdmin: pilih dulu database tujuan (mis. u173485424_Order_Hoki)
+-- di sidebar phpMyAdmin, baru import file ini lewat tab "Import".
+-- Jangan jalankan CREATE DATABASE/USE manual - shared hosting biasanya
+-- membatasi nama database harus pakai prefix akun (mis. u173485424_...).
 -- =========================================================
-
-CREATE DATABASE IF NOT EXISTS hokidimsum_order CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE hokidimsum_order;
 
 -- Admin (untuk login dashboard)
 CREATE TABLE IF NOT EXISTS admin_users (
