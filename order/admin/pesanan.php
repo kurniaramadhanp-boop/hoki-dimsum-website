@@ -22,6 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     redirect(BASE_URL . '/admin/pesanan.php' . (isset($_POST['order_id']) ? '?view=' . (int)$_POST['order_id'] : ''));
 }
 
+// Hapus pesanan (order_items ikut terhapus otomatis lewat ON DELETE CASCADE)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_order']) && csrf_check()) {
+    $orderId = (int)$_POST['order_id'];
+    db()->prepare('DELETE FROM orders WHERE id = ?')->execute([$orderId]);
+    flash('success', 'Pesanan berhasil dihapus.');
+    redirect(BASE_URL . '/admin/pesanan.php');
+}
+
 $branches = db()->query("SELECT * FROM branches ORDER BY nama")->fetchAll();
 
 $filterStatus = $_GET['status'] ?? '';
@@ -94,6 +102,12 @@ if (!empty($_GET['view'])) {
       <button type="submit" name="update_status" value="1" class="btn btn-primary">Simpan Status</button>
       <a href="<?= e(wa_link($viewOrder['branch_wa'] ?: get_setting('wa_pusat',''), 'Halo ' . $viewOrder['nama_customer'] . ', terkait order ' . $viewOrder['order_code'])) ?>" target="_blank" class="btn btn-wa">💬 Chat Customer</a>
     </form>
+
+    <form method="post" data-confirm="Hapus pesanan <?= e($viewOrder['order_code']) ?> secara permanen? Tindakan ini tidak bisa dibatalkan." style="margin-top:10px;">
+      <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+      <input type="hidden" name="order_id" value="<?= $viewOrder['id'] ?>">
+      <button type="submit" name="delete_order" value="1" class="btn btn-outline" style="color:var(--red-600); border-color:var(--red-200,#f3c9c6);">🗑️ Hapus Pesanan Ini</button>
+    </form>
   </div>
 </div>
 <?php endif; ?>
@@ -131,7 +145,16 @@ if (!empty($_GET['view'])) {
             <td><?= rupiah($o['total_bayar']) ?></td>
             <td><span class="status-pill status-<?= e($o['status']) ?>"><?= e($statusLabels[$o['status']] ?? $o['status']) ?></span></td>
             <td><?= date('d/m H:i', strtotime($o['created_at'])) ?></td>
-            <td><a href="?view=<?= $o['id'] ?>" class="icon-btn edit" title="Lihat detail">👁️</a></td>
+            <td>
+              <div class="table-actions">
+                <a href="?view=<?= $o['id'] ?>" class="icon-btn edit" title="Lihat detail">👁️</a>
+                <form method="post" data-confirm="Hapus pesanan <?= e($o['order_code']) ?> secara permanen? Tindakan ini tidak bisa dibatalkan.">
+                  <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                  <input type="hidden" name="order_id" value="<?= $o['id'] ?>">
+                  <button type="submit" name="delete_order" value="1" class="icon-btn danger" title="Hapus">🗑️</button>
+                </form>
+              </div>
+            </td>
           </tr>
           <?php endforeach; ?>
         </tbody>
