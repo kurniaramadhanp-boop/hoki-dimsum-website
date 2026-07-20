@@ -77,7 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $branchValid = false;
         $branchNama = '';
         foreach ($branches as $b) { if ($b['id'] == $branchId) { $branchValid = true; $branchNama = $b['nama']; } }
-        if (!$branchValid) $errors[] = 'Pilih cabang yang valid.';
+        if (!$branchValid) {
+            $errors[] = 'Pilih cabang yang valid.';
+        } elseif (!branch_is_open_now(get_branch_hours($branchId))) {
+            $errors[] = 'Cabang ini sedang tutup saat ini. Silakan pilih cabang lain atau coba lagi pada jam operasionalnya.';
+        }
         if (!$items) $errors[] = 'Keranjang kosong.';
 
         $subtotal = 0;
@@ -195,10 +199,11 @@ require __DIR__ . '/includes/header.php';
         <label>Pilih Cabang</label>
         <select name="branch_id" class="form-control" required>
           <option value="">— Pilih cabang —</option>
-          <?php foreach ($branches as $b): ?>
-          <option value="<?= $b['id'] ?>" <?= (isset($_POST['branch_id']) && $_POST['branch_id'] == $b['id']) ? 'selected' : '' ?>><?= e($b['nama']) ?></option>
+          <?php foreach ($branches as $b): $openNow = branch_is_open_now(get_branch_hours((int)$b['id'])); ?>
+          <option value="<?= $b['id'] ?>" <?= !$openNow ? 'disabled' : '' ?> <?= (isset($_POST['branch_id']) && $_POST['branch_id'] == $b['id']) ? 'selected' : '' ?>><?= e($b['nama']) ?><?= !$openNow ? ' (Tutup)' : '' ?></option>
           <?php endforeach; ?>
         </select>
+        <div class="form-hint">Cabang yang sedang tutup di luar jam operasional tidak bisa dipilih.</div>
       </div>
 
       <div class="form-group">

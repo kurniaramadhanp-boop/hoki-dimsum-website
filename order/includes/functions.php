@@ -142,3 +142,31 @@ function day_id(string $englishDay): string
     ];
     return $map[$englishDay] ?? $englishDay;
 }
+
+function day_names(): array
+{
+    // Kunci mengikuti DateTime::format('w'): 0=Minggu ... 6=Sabtu
+    return [0 => 'Minggu', 1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu'];
+}
+
+function get_branch_hours(int $branchId): array
+{
+    $stmt = db()->prepare('SELECT * FROM branch_hours WHERE branch_id = ?');
+    $stmt->execute([$branchId]);
+    $hours = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $hours[(int)$row['hari']] = $row;
+    }
+    return $hours;
+}
+
+function branch_is_open_now(array $hoursByDay): bool
+{
+    $now = new DateTime();
+    $today = $hoursByDay[(int)$now->format('w')] ?? null;
+    if (!$today) return true; // belum diatur -> tidak dibatasi
+    if ((int)$today['is_closed'] === 1) return false;
+    if (empty($today['buka']) || empty($today['tutup'])) return true; // jam kosong -> tidak dibatasi
+    $nowTime = $now->format('H:i:s');
+    return $nowTime >= $today['buka'] && $nowTime <= $today['tutup'];
+}

@@ -28,6 +28,16 @@ function db(): PDO
         if (!$pdo->query("SHOW COLUMNS FROM branches LIKE 'qris_image'")->fetch()) {
             $pdo->exec('ALTER TABLE branches ADD COLUMN qris_image VARCHAR(255) NULL');
         }
+        $pdo->exec("CREATE TABLE IF NOT EXISTS branch_hours (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            branch_id INT NOT NULL,
+            hari TINYINT NOT NULL,
+            buka TIME NULL,
+            tutup TIME NULL,
+            is_closed TINYINT(1) DEFAULT 0,
+            UNIQUE KEY uniq_branch_hari (branch_id, hari),
+            FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB");
     }
     return $pdo;
 }

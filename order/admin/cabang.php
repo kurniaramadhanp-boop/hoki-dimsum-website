@@ -3,6 +3,22 @@ $pageTitle = 'Cabang';
 $activeMenu = 'cabang';
 require __DIR__ . '/includes/admin-header.php';
 
+function save_branch_hours(int $branchId, array $post): void {
+    db()->prepare('DELETE FROM branch_hours WHERE branch_id = ?')->execute([$branchId]);
+    $stmt = db()->prepare('INSERT INTO branch_hours (branch_id, hari, buka, tutup, is_closed) VALUES (?,?,?,?,?)');
+    for ($hari = 0; $hari <= 6; $hari++) {
+        $isClosed = isset($post["closed_$hari"]) ? 1 : 0;
+        $buka = trim($post["buka_$hari"] ?? '');
+        $tutup = trim($post["tutup_$hari"] ?? '');
+        if ($isClosed) {
+            $stmt->execute([$branchId, $hari, null, null, 1]);
+        } elseif ($buka !== '' && $tutup !== '') {
+            $stmt->execute([$branchId, $hari, $buka, $tutup, 0]);
+        }
+        // kalau tidak ditutup & jam kosong -> tidak insert baris (artinya tidak dibatasi di hari itu)
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_branch']) && csrf_check()) {
     $id = (int)($_POST['id'] ?? 0);
     $nama = trim($_POST['nama'] ?? '');
@@ -31,12 +47,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_branch']) && csr
                     db()->prepare('UPDATE branches SET nama=?, alamat=?, jam_operasional=?, wa_number=?, gofood_link=?, grabfood_link=?, shopeefood_link=?, is_active=? WHERE id=?')
                         ->execute([$nama, $alamat, $jam, $wa ?: null, $gofood ?: null, $grabfood ?: null, $shopeefood ?: null, $isActive, $id]);
                 }
+                $savedBranchId = $id;
                 flash('success', 'Cabang berhasil diperbarui.');
             } else {
                 db()->prepare('INSERT INTO branches (nama, alamat, jam_operasional, wa_number, gofood_link, grabfood_link, shopeefood_link, qris_image, is_active) VALUES (?,?,?,?,?,?,?,?,?)')
                     ->execute([$nama, $alamat, $jam, $wa ?: null, $gofood ?: null, $grabfood ?: null, $shopeefood ?: null, $qris, $isActive]);
+                $savedBranchId = (int)db()->lastInsertId();
                 flash('success', 'Cabang berhasil ditambahkan.');
             }
+            save_branch_hours($savedBranchId, $_POST);
         } catch (RuntimeException $e) {
             flash('error', $e->getMessage());
         }
@@ -59,11 +78,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_branch']) && c
 
 $branches = db()->query('SELECT * FROM branches ORDER BY id DESC')->fetchAll();
 $editBranch = null;
+$editHours = [];
 if (!empty($_GET['edit'])) {
     $stmt = db()->prepare('SELECT * FROM branches WHERE id = ?');
     $stmt->execute([(int)$_GET['edit']]);
     $editBranch = $stmt->fetch();
+    if ($editBranch) {
+        $editHours = get_branch_hours((int)$editBranch['id']);
+    }
 }
+$dayOrder = [1, 2, 3, 4, 5, 6, 0]; // Senin ... Minggu
+$dayNames = day_names();
 ?>
 
 <div class="panel">
@@ -82,7 +107,7 @@ if (!empty($_GET['edit'])) {
           <input type="text" name="nama" class="form-control" required value="<?= e($editBranch['nama'] ?? '') ?>">
         </div>
         <div class="form-group">
-          <label>Jam Operasional</label>
+          <label>Jam Operasional (teks tampilan, mis. "09.00 - 21.00 WIB")</label>
           <input type="text" name="jam_operasional" class="form-control" placeholder="09.00 - 21.00 WIB" value="<?= e($editBranch['jam_operasional'] ?? '') ?>">
         </div>
       </div>
@@ -90,6 +115,26 @@ if (!empty($_GET['edit'])) {
       <div class="form-group">
         <label>Alamat</label>
         <textarea name="alamat" class="form-control" required><?= e($editBranch['alamat'] ?? '') ?></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Jam &amp; Hari Buka per Hari (dipakai untuk otomatis menutup pilihan cabang saat checkout)</label>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Hari</th><th>Tutup Penuh</th><th>Jam Buka</th><th>Jam Tutup</th></tr></thead>
+            <tbody>
+              <?php foreach ($dayOrder as $hari): $h = $editHours[$hari] ?? null; ?>
+              <tr>
+                <td><?= e($dayNames[$hari]) ?></td>
+                <td><input type="checkbox" name="closed_<?= $hari ?>" <?= ($h && $h['is_closed']) ? 'checked' : '' ?>></td>
+                <td><input type="time" name="buka_<?= $hari ?>" class="form-control" value="<?= $h && $h['buka'] ? e(substr($h['buka'], 0, 5)) : '' ?>"></td>
+                <td><input type="time" name="tutup_<?= $hari ?>" class="form-control" value="<?= $h && $h['tutup'] ? e(substr($h['tutup'], 0, 5)) : '' ?>"></td>
+              </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+        <div class="form-hint">Kosongkan jam buka &amp; tutup (dan jangan centang Tutup Penuh) kalau hari itu tidak mau dibatasi &mdash; cabang akan selalu bisa dipilih saat checkout.</div>
       </div>
 
       <div class="form-group">
@@ -133,15 +178,16 @@ if (!empty($_GET['edit'])) {
   <div class="panel-head"><h3>Daftar Cabang (<?= count($branches) ?>)</h3></div>
   <div class="panel-body table-wrap">
     <table class="data-table">
-      <thead><tr><th>Nama</th><th>Alamat</th><th>QRIS</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Nama</th><th>Alamat</th><th>QRIS</th><th>Status</th><th>Buka Sekarang?</th><th></th></tr></thead>
       <tbody>
-        <?php if (!$branches): ?><tr><td colspan="5">Belum ada cabang.</td></tr><?php endif; ?>
-        <?php foreach ($branches as $b): ?>
+        <?php if (!$branches): ?><tr><td colspan="6">Belum ada cabang.</td></tr><?php endif; ?>
+        <?php foreach ($branches as $b): $openNow = branch_is_open_now(get_branch_hours((int)$b['id'])); ?>
         <tr>
           <td><?= e($b['nama']) ?></td>
           <td><?= e($b['alamat']) ?></td>
           <td><span class="status-pill <?= !empty($b['qris_image']) ? 'status-ready' : 'status-pending_payment' ?>"><?= !empty($b['qris_image']) ? 'Ada' : 'Pakai Pusat' ?></span></td>
           <td><span class="status-pill <?= $b['is_active'] ? 'status-ready' : 'status-cancelled' ?>"><?= $b['is_active'] ? 'Aktif' : 'Nonaktif' ?></span></td>
+          <td><span class="status-pill <?= $openNow ? 'status-ready' : 'status-cancelled' ?>"><?= $openNow ? 'Buka' : 'Tutup' ?></span></td>
           <td>
             <div class="table-actions">
               <a href="?edit=<?= $b['id'] ?>" class="icon-btn edit" title="Edit">✏️</a>

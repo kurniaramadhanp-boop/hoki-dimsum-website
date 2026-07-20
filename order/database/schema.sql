@@ -50,6 +50,19 @@ INSERT INTO branches (nama, alamat, jam_operasional, is_active) VALUES
 ('Cabang A', 'ALAMAT_CABANG_A_DI_SINI', '08:00 - 21:00', 1),
 ('Cabang B', 'ALAMAT_CABANG_B_DI_SINI', '08:00 - 21:00', 1);
 
+-- Jam operasional per hari per cabang (dipakai untuk otomatis menutup pilihan cabang saat checkout).
+-- Kalau tidak ada baris untuk hari tertentu, cabang dianggap tidak dibatasi (selalu bisa dipilih) di hari itu.
+CREATE TABLE IF NOT EXISTS branch_hours (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    hari TINYINT NOT NULL COMMENT '0=Minggu, 1=Senin, ... 6=Sabtu',
+    buka TIME NULL,
+    tutup TIME NULL,
+    is_closed TINYINT(1) DEFAULT 0,
+    UNIQUE KEY uniq_branch_hari (branch_id, hari),
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Kategori produk
 CREATE TABLE IF NOT EXISTS product_categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
