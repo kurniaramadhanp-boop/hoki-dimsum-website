@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS products (
     foto VARCHAR(255),
     is_available TINYINT(1) DEFAULT 1,
     pos_sku VARCHAR(20) NULL,
+    urutan INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES product_categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
@@ -157,16 +158,16 @@ INSERT INTO product_categories (nama) VALUES
 ('Dimsum Kukus'), ('Dimsum Goreng'), ('Paket Hemat'), ('Minuman');
 
 -- Produk contoh
-INSERT INTO products (category_id, nama, deskripsi, harga, foto, is_available) VALUES
-(1, 'Hakau Udang', 'Dimsum kukus kulit bening isi udang segar pilihan, 5 pcs per porsi.', 28000, '', 1),
-(1, 'Siomay Ayam Udang', 'Siomay klasik isi ayam & udang, disiram saus sambal spesial, 5 pcs.', 22000, '', 1),
-(1, 'Kaki Naga', 'Dimsum kukus bentuk cakar naga, isi ayam cincang gurih, 5 pcs.', 24000, '', 1),
-(2, 'Lumpia Udang Goreng', 'Lumpia crispy isi udang, digoreng garing, 5 pcs.', 25000, '', 1),
-(2, 'Gyoza Ayam', 'Gyoza pan-fried isi ayam, disajikan dengan saus ponzu, 6 pcs.', 26000, '', 1),
-(3, 'Paket Hoki Berdua', '2 porsi dimsum pilihan + 2 minuman, hemat untuk berbagi.', 65000, '', 1),
-(3, 'Paket Hoki Keluarga', '5 porsi dimsum campur + 4 minuman, pas untuk keluarga.', 150000, '', 1),
-(4, 'Es Lemon Tea', 'Lemon tea segar dengan es batu, 500ml.', 12000, '', 1),
-(4, 'Es Jeruk', 'Jeruk peras asli tanpa pengawet, 500ml.', 12000, '', 1);
+INSERT INTO products (category_id, nama, deskripsi, harga, foto, is_available, urutan) VALUES
+(1, 'Hakau Udang', 'Dimsum kukus kulit bening isi udang segar pilihan, 5 pcs per porsi.', 28000, '', 1, 1),
+(1, 'Siomay Ayam Udang', 'Siomay klasik isi ayam & udang, disiram saus sambal spesial, 5 pcs.', 22000, '', 1, 2),
+(1, 'Kaki Naga', 'Dimsum kukus bentuk cakar naga, isi ayam cincang gurih, 5 pcs.', 24000, '', 1, 3),
+(2, 'Lumpia Udang Goreng', 'Lumpia crispy isi udang, digoreng garing, 5 pcs.', 25000, '', 1, 4),
+(2, 'Gyoza Ayam', 'Gyoza pan-fried isi ayam, disajikan dengan saus ponzu, 6 pcs.', 26000, '', 1, 5),
+(3, 'Paket Hoki Berdua', '2 porsi dimsum pilihan + 2 minuman, hemat untuk berbagi.', 65000, '', 1, 6),
+(3, 'Paket Hoki Keluarga', '5 porsi dimsum campur + 4 minuman, pas untuk keluarga.', 150000, '', 1, 7),
+(4, 'Es Lemon Tea', 'Lemon tea segar dengan es batu, 500ml.', 12000, '', 1, 8),
+(4, 'Es Jeruk', 'Jeruk peras asli tanpa pengawet, 500ml.', 12000, '', 1, 9);
 
 -- Promo contoh
 INSERT INTO promotions (judul, deskripsi, gambar, tanggal_mulai, tanggal_selesai, is_active) VALUES

@@ -20,7 +20,7 @@ require __DIR__ . '/includes/header.php';
   <div class="container">
     <div>
       <div class="hero-badge"><?= e($promoText) ?></div>
-      <h1><?php if ($heroHeadline !== ''): ?><?= e($heroHeadline) ?><?php else: ?>Dimsum Homemade,<br><span>Hoki</span> Setiap Gigitan<?php endif; ?></h1>
+      <h1><?php if ($heroHeadline !== ''): ?><?= e($heroHeadline) ?><?php else: ?>Sekali Coba,<br><span>Ketagihan</span> Selamanya<?php endif; ?></h1>
       <p class="lead"><?= e($heroSubtext) ?></p>
       <div class="hero-actions">
         <a href="<?= BASE_URL ?>/menu.php" class="btn btn-primary">🥟 Lihat Menu &amp; Order</a>

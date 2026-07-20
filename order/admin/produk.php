@@ -33,8 +33,9 @@ function sync_produk_dari_master(string $posApiBase): ?string {
             db()->prepare('UPDATE products SET nama = ?, harga = ? WHERE id = ?')
                 ->execute([$m['nama'], $m['harga'], $row['id']]);
         } else {
-            db()->prepare('INSERT INTO products (category_id, pos_sku, nama, deskripsi, harga, foto, is_available) VALUES (NULL, ?, ?, ?, ?, ?, 1)')
-                ->execute([$sku, $m['nama'], '', $m['harga'], '']);
+            $nextUrutan = (int)db()->query('SELECT COALESCE(MAX(urutan), 0) FROM products')->fetchColumn() + 1;
+            db()->prepare('INSERT INTO products (category_id, pos_sku, nama, deskripsi, harga, foto, is_available, urutan) VALUES (NULL, ?, ?, ?, ?, ?, 1, ?)')
+                ->execute([$sku, $m['nama'], '', $m['harga'], '', $nextUrutan]);
         }
     }
 
@@ -116,12 +117,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_product']) && cs
             }
             flash('success', 'Produk berhasil diperbarui.');
         } else {
-            db()->prepare('INSERT INTO products (category_id, nama, deskripsi, harga, foto, is_available) VALUES (?,?,?,?,?,?)')
-                ->execute([$categoryId, $nama, $deskripsi, $harga, $foto ?? '', $isAvailable]);
+            $nextUrutan = (int)db()->query('SELECT COALESCE(MAX(urutan), 0) FROM products')->fetchColumn() + 1;
+            db()->prepare('INSERT INTO products (category_id, nama, deskripsi, harga, foto, is_available, urutan) VALUES (?,?,?,?,?,?,?)')
+                ->execute([$categoryId, $nama, $deskripsi, $harga, $foto ?? '', $isAvailable, $nextUrutan]);
             flash('success', 'Produk berhasil ditambahkan.');
         }
     } catch (RuntimeException $e) {
         flash('error', $e->getMessage());
+    }
+    redirect(BASE_URL . '/admin/produk.php');
+}
+
+// ---- Handle move (ubah urutan tampil di menu) ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['move_product']) && csrf_check()) {
+    $id = (int)$_POST['id'];
+    $dir = $_POST['move_product'] === 'up' ? 'up' : 'down';
+    $current = db()->prepare('SELECT id, urutan FROM products WHERE id = ?');
+    $current->execute([$id]);
+    $curRow = $current->fetch();
+    if ($curRow) {
+        $neighborStmt = $dir === 'up'
+            ? db()->prepare('SELECT id, urutan FROM products WHERE urutan < ? ORDER BY urutan DESC LIMIT 1')
+            : db()->prepare('SELECT id, urutan FROM products WHERE urutan > ? ORDER BY urutan ASC LIMIT 1');
+        $neighborStmt->execute([$curRow['urutan']]);
+        $neighbor = $neighborStmt->fetch();
+        if ($neighbor) {
+            db()->prepare('UPDATE products SET urutan = ? WHERE id = ?')->execute([$neighbor['urutan'], $curRow['id']]);
+            db()->prepare('UPDATE products SET urutan = ? WHERE id = ?')->execute([$curRow['urutan'], $neighbor['id']]);
+        }
     }
     redirect(BASE_URL . '/admin/produk.php');
 }
@@ -149,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_product']) && 
 }
 
 $categories = db()->query('SELECT * FROM product_categories ORDER BY nama')->fetchAll();
-$products = db()->query('SELECT p.*, c.nama AS category_nama FROM products p LEFT JOIN product_categories c ON c.id = p.category_id ORDER BY p.id DESC')->fetchAll();
+$products = db()->query('SELECT p.*, c.nama AS category_nama FROM products p LEFT JOIN product_categories c ON c.id = p.category_id ORDER BY p.urutan ASC, p.id ASC')->fetchAll();
 
 $editProduct = null;
 if (!empty($_GET['edit'])) {
@@ -242,13 +265,26 @@ if (!empty($_GET['edit'])) {
 
 <div class="panel">
   <div class="panel-head"><h3>Daftar Produk (<?= count($products) ?>)</h3></div>
-  <div class="panel-body table-wrap">
+  <div class="panel-body">
+    <p class="form-hint">Urutan di sini menentukan urutan tampil menu di halaman order (dari atas ke bawah). Pakai ⬆️⬇️ untuk mengatur.</p>
+  </div>
+  <div class="panel-body table-wrap" style="padding-top:0;">
     <table class="data-table">
-      <thead><tr><th>Foto</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Sumber</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Urutan</th><th>Foto</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Sumber</th><th>Status</th><th></th></tr></thead>
       <tbody>
-        <?php if (!$products): ?><tr><td colspan="7">Belum ada produk.</td></tr><?php endif; ?>
-        <?php foreach ($products as $p): ?>
+        <?php if (!$products): ?><tr><td colspan="8">Belum ada produk.</td></tr><?php endif; ?>
+        <?php foreach ($products as $i => $p): ?>
         <tr>
+          <td>
+            <div class="table-actions">
+              <?php if ($i > 0): ?>
+              <form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="id" value="<?= $p['id'] ?>"><button type="submit" name="move_product" value="up" class="icon-btn" title="Naikkan">⬆️</button></form>
+              <?php endif; ?>
+              <?php if ($i < count($products) - 1): ?>
+              <form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="id" value="<?= $p['id'] ?>"><button type="submit" name="move_product" value="down" class="icon-btn" title="Turunkan">⬇️</button></form>
+              <?php endif; ?>
+            </div>
+          </td>
           <td><?php if ($p['foto']): ?><img src="<?= UPLOAD_URL . '/' . e($p['foto']) ?>" class="thumb-sm"><?php else: ?>🥟<?php endif; ?></td>
           <td><?= e($p['nama']) ?></td>
           <td><?= e($p['category_nama'] ?? '-') ?></td>

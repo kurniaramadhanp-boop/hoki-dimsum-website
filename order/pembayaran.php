@@ -28,7 +28,7 @@ $pesan = "Halo, saya konfirmasi pembayaran.\n"
 $waLink = wa_link($waTarget, $pesan);
 
 $qrisImage = $order['branch_qris'] ?? '';
-$pickupLabel = $order['pickup_method'] === 'ojol' ? 'Dikirim Ojol (titik jemput driver)' : 'Ambil Sendiri';
+$pickupLabel = $order['pickup_method'] === 'ojol' ? 'Diambil Ojol (titik jemput driver)' : 'Ambil Sendiri';
 
 require __DIR__ . '/includes/header.php';
 ?>

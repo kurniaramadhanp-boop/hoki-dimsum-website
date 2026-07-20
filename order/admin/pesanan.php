@@ -73,7 +73,7 @@ if (!empty($_GET['view'])) {
         <div class="summary-row"><span>Nama</span><strong><?= e($viewOrder['nama_customer']) ?></strong></div>
         <div class="summary-row"><span>No. WA</span><strong><?= e($viewOrder['no_wa']) ?></strong></div>
         <div class="summary-row"><span>Cabang</span><strong><?= e($viewOrder['branch_nama']) ?></strong></div>
-        <div class="summary-row"><span>Metode Ambil</span><strong><?= $viewOrder['pickup_method'] === 'ojol' ? 'Dikirim Ojol' : 'Ambil Sendiri' ?></strong></div>
+        <div class="summary-row"><span>Metode Ambil</span><strong><?= $viewOrder['pickup_method'] === 'ojol' ? 'Diambil Ojol' : 'Ambil Sendiri' ?></strong></div>
         <div class="summary-row"><span>Jadwal</span><strong><?= date('d M Y', strtotime($viewOrder['pickup_date'])) ?>, <?= substr($viewOrder['pickup_time'], 0, 5) ?></strong></div>
         <?php if ($viewOrder['catatan']): ?><div class="summary-row"><span>Catatan</span><strong><?= e($viewOrder['catatan']) ?></strong></div><?php endif; ?>
       </div>

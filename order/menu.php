@@ -8,7 +8,7 @@ $products = db()->query("
     SELECT p.*, c.nama AS category_nama
     FROM products p
     LEFT JOIN product_categories c ON c.id = p.category_id
-    ORDER BY p.category_id, p.nama
+    ORDER BY p.urutan ASC, p.id ASC
 ")->fetchAll();
 
 require __DIR__ . '/includes/header.php';

@@ -208,7 +208,7 @@ require __DIR__ . '/includes/header.php';
             <input type="radio" name="pickup_method" value="sendiri" required> Ambil Sendiri
           </label>
           <label class="radio-card">
-            <input type="radio" name="pickup_method" value="ojol"> Dikirim Ojol
+            <input type="radio" name="pickup_method" value="ojol"> Diambil Ojol
           </label>
         </div>
       </div>

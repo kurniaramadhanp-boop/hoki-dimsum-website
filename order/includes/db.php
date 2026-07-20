@@ -16,6 +16,18 @@ function db(): PDO
             http_response_code(500);
             die('Koneksi database gagal. Pastikan database "' . DB_NAME . '" sudah dibuat dan import database/schema.sql. Detail: ' . htmlspecialchars($e->getMessage()));
         }
+
+        // Migrasi aman untuk DB lama: tambahkan kolom yang belum ada tanpa perlu import ulang schema.sql.
+        if (!$pdo->query("SHOW COLUMNS FROM products LIKE 'urutan'")->fetch()) {
+            $pdo->exec('ALTER TABLE products ADD COLUMN urutan INT DEFAULT 0');
+            $pdo->exec('UPDATE products SET urutan = id');
+        }
+        if (!$pdo->query("SHOW COLUMNS FROM products LIKE 'pos_sku'")->fetch()) {
+            $pdo->exec('ALTER TABLE products ADD COLUMN pos_sku VARCHAR(20) NULL');
+        }
+        if (!$pdo->query("SHOW COLUMNS FROM branches LIKE 'qris_image'")->fetch()) {
+            $pdo->exec('ALTER TABLE branches ADD COLUMN qris_image VARCHAR(255) NULL');
+        }
     }
     return $pdo;
 }

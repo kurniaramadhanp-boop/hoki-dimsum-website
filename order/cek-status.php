@@ -49,7 +49,7 @@ require __DIR__ . '/includes/header.php';
       <?php if ($notFound): ?>
         <div class="alert alert-error" style="margin-top:20px;">Order dengan kode tersebut tidak ditemukan.</div>
       <?php elseif ($order): ?>
-        <?php $pickupLabelStatus = $order['pickup_method'] === 'ojol' ? 'Dikirim Ojol (titik jemput driver)' : 'Ambil Sendiri'; ?>
+        <?php $pickupLabelStatus = $order['pickup_method'] === 'ojol' ? 'Diambil Ojol (titik jemput driver)' : 'Ambil Sendiri'; ?>
         <div style="margin-top:24px;">
           <div class="summary-row"><span>Kode Order</span><strong><?= e($order['order_code']) ?></strong></div>
           <div class="summary-row"><span>Nama</span><strong><?= e($order['nama_customer']) ?></strong></div>

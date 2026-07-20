@@ -58,3 +58,7 @@ Temporary Items
 # Server-side untracked directories
 dev/
 dev.flag
+
+# Database dumps (berisi data production asli & hash password admin, jangan pernah di-commit)
+/u173485424_Order_Hoki.sql
+/u173485424_hoki.sql
