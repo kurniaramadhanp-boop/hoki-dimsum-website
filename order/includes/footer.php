@@ -30,7 +30,6 @@ $waPusat = get_setting('wa_pusat', '');
         <ul>
           <li><a href="<?= BASE_URL ?>/checkout.php">Order Sekarang</a></li>
           <li><a href="<?= BASE_URL ?>/cek-status.php">Cek Status Order</a></li>
-          <li><a href="<?= BASE_URL ?>/admin/login.php">Login Admin</a></li>
         </ul>
       </div>
       <div class="footer-col">
