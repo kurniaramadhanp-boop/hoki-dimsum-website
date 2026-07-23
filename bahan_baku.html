@@ -178,6 +178,9 @@
                     <label>Harga / Satuan</label>
                     <input type="text" id="bHargaSatuan" readonly placeholder="Auto">
                 </div>
+                <div class="input-group">
+                    <label><input type="checkbox" id="bStokHarian" style="width:auto;"> Audit Stok Harian</label>
+                </div>
                 <button class="btn-simpan" onclick="simpanBahan()">💾 Simpan</button>
             </div>
         </div>
@@ -191,11 +194,12 @@
                         <th>Banyak</th>
                         <th>Satuan</th>
                         <th>Harga / Satuan</th>
+                        <th>Audit Harian</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tabelBahan">
-                    <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-light);">Memuat data...</td></tr>
+                    <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-light);">Memuat data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -408,17 +412,21 @@ async function muatBahan() {
 function renderTabel() {
     const tbody = document.getElementById('tabelBahan');
     if (!allBahan.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-light);">Belum ada data bahan baku</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-light);">Belum ada data bahan baku</td></tr>';
         return;
     }
     tbody.innerHTML = allBahan.map(b => {
         const hs = parseFloat(b.harga_satuan) || 0;
+        const isStokHarian = parseInt(b.is_stok_harian) === 1;
         return `<tr>
             <td><b>${b.nama}</b></td>
             <td class="mono">Rp ${parseFloat(b.harga).toLocaleString('id-ID')}</td>
             <td class="mono">${parseFloat(b.banyak).toLocaleString('id-ID')}</td>
             <td>${b.satuan}</td>
             <td class="mono red">Rp ${hs.toLocaleString('id-ID', {minimumFractionDigits:0, maximumFractionDigits:4})} <small style="color:var(--text-muted);font-weight:400;">/ ${b.satuan}</small></td>
+            <td style="text-align:center;">
+                <input type="checkbox" ${isStokHarian ? 'checked' : ''} onchange="toggleStokHarian(${b.id}, this.checked)" title="Audit Stok Harian">
+            </td>
             <td>
                 <button class="btn-edit-icon" onclick="siapkanEdit(${b.id})" title="Edit Data">✏️</button>
                 <button class="btn-hapus-icon" onclick="hapusBahan(${b.id})" title="Hapus Data">🗑️</button>
@@ -435,6 +443,7 @@ function siapkanEdit(id) {
     document.getElementById('bHarga').value  = b.harga;
     document.getElementById('bBanyak').value = b.banyak;
     document.getElementById('bSatuan').value = b.satuan;
+    document.getElementById('bStokHarian').checked = parseInt(b.is_stok_harian) === 1;
     hitungHargaSatuan();
     window.scrollTo({top:0, behavior:'smooth'});
     document.querySelector('.btn-simpan').innerText = '💾 Update';
@@ -445,11 +454,12 @@ async function simpanBahan() {
     const harga  = parseFloat(document.getElementById('bHarga').value) || 0;
     const banyak = parseFloat(document.getElementById('bBanyak').value) || 0;
     const satuan = document.getElementById('bSatuan').value.trim();
+    const isStokHarian = document.getElementById('bStokHarian').checked;
 
     if (!nama || !harga || !banyak || !satuan) return toast.warning('Lengkapi semua field!');
 
     const harga_satuan = harga / banyak;
-    const payload = { id: editId, nama, harga, banyak, satuan, harga_satuan };
+    const payload = { id: editId, nama, harga, banyak, satuan, harga_satuan, is_stok_harian: isStokHarian ? 1 : 0 };
 
     try {
         const res   = await fetch(`${API_BASE}?action=save_bahan_baku`, {
@@ -462,12 +472,37 @@ async function simpanBahan() {
             toast.success(editId ? 'Bahan diupdate!' : 'Bahan berhasil ditambah!');
             editId = null;
             ['bNama','bHarga','bBanyak','bSatuan','bHargaSatuan'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('bStokHarian').checked = false;
             document.querySelector('.btn-simpan').innerText = '💾 Simpan';
             muatBahan();
         } else {
             toast.error('Gagal menyimpan!');
         }
     } catch(e) { toast.error('Gagal koneksi server!'); }
+}
+
+async function toggleStokHarian(id, checked) {
+    const b = allBahan.find(x => x.id == id);
+    if (!b) return;
+    const payload = { id: b.id, nama: b.nama, harga: b.harga, banyak: b.banyak, satuan: b.satuan, harga_satuan: b.harga_satuan, is_stok_harian: checked ? 1 : 0 };
+    try {
+        const res   = await fetch(`${API_BASE}?action=save_bahan_baku`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload)
+        });
+        const hasil = await res.json();
+        if (hasil.status === 'success') {
+            b.is_stok_harian = checked ? 1 : 0;
+            toast.success(checked ? `${b.nama} ditambahkan ke Audit Stok Harian` : `${b.nama} dihapus dari Audit Stok Harian`);
+        } else {
+            toast.error('Gagal menyimpan!');
+            muatBahan();
+        }
+    } catch(e) {
+        toast.error('Gagal koneksi server!');
+        muatBahan();
+    }
 }
 
 async function hapusBahan(id) {

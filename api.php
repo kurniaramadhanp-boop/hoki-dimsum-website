@@ -262,6 +262,13 @@ $conn->query("CREATE TABLE IF NOT EXISTS bahan_baku (
     satuan VARCHAR(20) DEFAULT 'gr',
     harga_satuan FLOAT DEFAULT 0
 )");
+$checkColStokHarian = $conn->query("SHOW COLUMNS FROM bahan_baku LIKE 'is_stok_harian'");
+if ($checkColStokHarian && $checkColStokHarian->num_rows === 0) {
+    $conn->query("ALTER TABLE bahan_baku ADD COLUMN is_stok_harian TINYINT(1) DEFAULT 0");
+    // Backfill: 2 item yg sebelumnya hardcode di laporan_staff.html, supaya audit stok harian
+    // tidak mendadak kosong begitu daftar audit pindah ke sini.
+    $conn->query("UPDATE bahan_baku SET is_stok_harian = 1 WHERE nama IN ('Dimsum Shaomai', 'Alu Tray AX-350')");
+}
 $conn->query("CREATE TABLE IF NOT EXISTS hpp_produk (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nama_produk VARCHAR(150) DEFAULT '',
@@ -315,6 +322,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS stok_history (
     cabang VARCHAR(100) DEFAULT '',
     items_json TEXT
 )");
+// ── Fix bug: save_laporan_stok dulu selalu INSERT (edit laporan bikin duplikat report_id).
+// Bersihkan duplikat lama (sisakan baris terbaru per report_id) sebelum tambah unique key.
+$conn->query("DELETE t1 FROM stok_history t1 INNER JOIN stok_history t2
+              WHERE t1.report_id = t2.report_id AND t1.id < t2.id");
+$idxStokHistory = $conn->query("SHOW INDEX FROM stok_history WHERE Key_name = 'uq_report_id'");
+if ($idxStokHistory && $idxStokHistory->num_rows === 0) {
+    $conn->query("ALTER TABLE stok_history ADD UNIQUE KEY uq_report_id (report_id)");
+}
 $conn->query("CREATE TABLE IF NOT EXISTS restock_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
     waktu TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -475,6 +490,16 @@ $checkColKategori = $conn->query("SHOW COLUMNS FROM produk LIKE 'kategori'");
 if ($checkColKategori && $checkColKategori->num_rows === 0) {
     $conn->query("ALTER TABLE produk ADD COLUMN kategori VARCHAR(100) NULL DEFAULT 'Umum'");
 }
+
+// ── Perbaikan data: dimsumPcs paket bundling HM1-HM4 masih 0, padahal isinya jelas dimsum
+// (nilai terverifikasi dari SUM qty hpp_produk_detail bahan_id=9/Dimsum Shaomai per resep).
+// Guard "AND dimsumPcs=0" supaya tidak menimpa kalau sudah pernah dikoreksi manual.
+// HM5 (FO35 + SAUS 200GR + Nori) SENGAJA tidak diisi (tetap 0) - itu paket frozen, bukan dimsum
+// matang, jadi dipisah dari breakdown "dimsum terjual" harian.
+$conn->query("UPDATE produk SET dimsumPcs = 10 WHERE sku = 'HM1' AND dimsumPcs = 0");
+$conn->query("UPDATE produk SET dimsumPcs = 8  WHERE sku = 'HM2' AND dimsumPcs = 0");
+$conn->query("UPDATE produk SET dimsumPcs = 13 WHERE sku = 'HM3' AND dimsumPcs = 0");
+$conn->query("UPDATE produk SET dimsumPcs = 19 WHERE sku = 'HM4' AND dimsumPcs = 0");
 
 // ── Ketersediaan menu per-cabang (opt-out: baris di sini = produk itu NONAKTIF di cabang itu) ──
 $conn->query("CREATE TABLE IF NOT EXISTS produk_cabang_nonaktif (
@@ -1279,7 +1304,8 @@ switch ($action) {
         $pt  = $conn->real_escape_string($input['petugas'] ?? '');
         $cb  = $conn->real_escape_string($input['cabang'] ?? '');
         $it  = $conn->real_escape_string(json_encode($input['items'] ?? []));
-        $sql = "INSERT INTO stok_history (report_id, petugas, cabang, items_json) VALUES ('$rid','$pt','$cb','$it')";
+        $sql = "INSERT INTO stok_history (report_id, petugas, cabang, items_json) VALUES ('$rid','$pt','$cb','$it')
+                ON DUPLICATE KEY UPDATE petugas='$pt', cabang='$cb', items_json='$it'";
         echo $conn->query($sql)
             ? json_encode(["status"=>"success"])
             : json_encode(["status"=>"error","message"=>$conn->error]);
@@ -1518,11 +1544,12 @@ switch ($action) {
         $byk  = (float)($input['banyak'] ?? 0);
         $sat  = $conn->real_escape_string($input['satuan'] ?? '');
         $hs   = $byk > 0 ? $hrg / $byk : 0;
+        $stokHarian = !empty($input['is_stok_harian']) ? 1 : 0;
 
         if ($id > 0) {
-            $sql = "UPDATE bahan_baku SET nama='$nama', harga=$hrg, banyak=$byk, satuan='$sat', harga_satuan=$hs WHERE id=$id";
+            $sql = "UPDATE bahan_baku SET nama='$nama', harga=$hrg, banyak=$byk, satuan='$sat', harga_satuan=$hs, is_stok_harian=$stokHarian WHERE id=$id";
         } else {
-            $sql = "INSERT INTO bahan_baku (nama, harga, banyak, satuan, harga_satuan) VALUES ('$nama',$hrg,$byk,'$sat',$hs)";
+            $sql = "INSERT INTO bahan_baku (nama, harga, banyak, satuan, harga_satuan, is_stok_harian) VALUES ('$nama',$hrg,$byk,'$sat',$hs,$stokHarian)";
         }
 
         if ($conn->query($sql)) {

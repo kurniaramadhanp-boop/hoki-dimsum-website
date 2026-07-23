@@ -578,12 +578,24 @@ let pengeluaran         = [];
 let cacheHistoryLaporan = [];
 let omzetPerMetode      = {};
 let currentDetailID     = null;
-let defaultAudit = [
-    { id: 'Dimsum Shaomai', nama: 'Dimsum Shaomai (Pcs)', awal: 0, laku: 0, sisa: 0, isDefault: true },
-    { id: 'Alu Tray AX-350', nama: 'Alu Tray AX-350 (Pcs)', awal: 0, laku: 0, sisa: 0, isDefault: true }
-];
 let savedCustomItems = JSON.parse(localStorage.getItem('hoki_custom_audit')) || [];
-let auditItems = [...defaultAudit, ...savedCustomItems];
+let auditItems = [...savedCustomItems];
+
+/* Daftar item audit stok harian sekarang dikonfigurasi lewat bahan_baku.html (checkbox
+   "Audit Stok Harian"), bukan hardcode di sini. bahan_id disimpan supaya matching "laku"
+   ke resep HPP bisa pakai ID (presisi), bukan fuzzy string includes(). */
+async function loadDefaultAudit() {
+    try {
+        const res = await fetch(`${API_BASE}?action=get_bahan_baku`);
+        const allBahan = await res.json();
+        const defaultAudit = allBahan
+            .filter(b => parseInt(b.is_stok_harian) === 1)
+            .map(b => ({ id: b.nama, bahanId: parseInt(b.id), matchNama: b.nama, nama: `${b.nama} (${b.satuan})`, awal: 0, laku: 0, sisa: 0, isDefault: true }));
+        auditItems = [...defaultAudit, ...savedCustomItems];
+    } catch (e) {
+        console.error('Gagal memuat daftar audit stok harian dari bahan_baku', e);
+    }
+}
 
 /* ── SIDEBAR ── */
 function toggleSidebar() {
@@ -751,27 +763,44 @@ function closeSheetOutside(e,id) { if(e.target===document.getElementById(id)) do
 async function fetchLaporanData() {
     const tglDipilih = document.getElementById('filterTanggal').value;
     try {
-        // 1. Tarik data secara paralel: Master HPP dan History Transaksi
-        const [resHpp, resTrx] = await Promise.all([
+        // 1. Tarik data secara paralel: Master HPP, History Transaksi, dan History Stok (utk prefill "awal")
+        const [resHpp, resTrx, resStok] = await Promise.all([
             fetch(`${API_BASE}?action=get_hpp_produk`),
-            fetch(`${API_BASE}?action=get_history&tgl_mulai=${tglDipilih}&tgl_selesai=${tglDipilih}`)
+            fetch(`${API_BASE}?action=get_history&tgl_mulai=${tglDipilih}&tgl_selesai=${tglDipilih}`),
+            fetch(`${API_BASE}?action=get_laporan_stok&role=${currentUser.role}&cabang=${encodeURIComponent(currentUser.cabang || cabangAktif)}`)
         ]);
-        
+
         const masterHpp = await resHpp.json();
         const transactions = await resTrx.json();
+        const stokHistory = await resStok.json();
 
         // 2. Inisialisasi Omset
         omzetPerMetode = { CASH: 0, QRIS: 0, QR_ONLINE: 0, GF: 0, GB: 0, SF: 0, PG: 0, RM: 0 };
         let totalOmzet = 0;
 
-        // 3. Reset angka laku di semua item audit agar tidak double saat refresh
-        auditItems.forEach(it => it.laku = 0);
+        // 3. Reset angka laku & awal di semua item audit agar tidak double / nyangkut dari tanggal lain saat refresh
+        auditItems.forEach(it => { it.laku = 0; it.awal = 0; });
+
+        // 3b. Prefill "awal" dari SUM qty stok_history utk tanggal & cabang yg dipilih (staff tetap bisa koreksi manual).
+        // stok_history disimpan berbasis nama item (dari stok_master), bukan bahan_id, jadi matching di sini pakai nama.
+        stokHistory.forEach(h => {
+            if ((h.waktu || '').split(' ')[0] !== tglDipilih || h.cabang !== cabangAktif) return;
+            let itemsAmbil = [];
+            try { itemsAmbil = JSON.parse(h.items_json || '[]'); } catch (_) { itemsAmbil = []; }
+            itemsAmbil.forEach(ia => {
+                const namaAmbil = (ia.item || '').toLowerCase().trim();
+                const aIdx = auditItems.findIndex(audit => (audit.matchNama || audit.nama).toLowerCase().trim() === namaAmbil);
+                if (aIdx > -1) {
+                    auditItems[aIdx].awal += parseFloat(ia.qty) || 0;
+                }
+            });
+        });
 
         // 4. Mulai Analisis Transaksi
         transactions.forEach(t => {
             // Filter berdasarkan Tanggal dan Cabang Aktif
             if ((t.waktu || '').split(' ')[0] === tglDipilih && t.cabang === cabangAktif) {
-                
+
                 // A. Hitung Omset per Metode
                 const mtd = (t.metode || '').toUpperCase();
                 if (omzetPerMetode[mtd] !== undefined) {
@@ -784,18 +813,20 @@ async function fetchLaporanData() {
                 itemsTerjual.forEach(it => {
                     // LANGKAH 1: Cari Resep di Master HPP berdasarkan SKU
                     const hppResep = masterHpp.find(x => x.sku === it.sku);
-                    
+
                     if (hppResep) {
                         const detailBahan = JSON.parse(hppResep.detail_json || '[]');
-                        
+
                         // LANGKAH 2: Bedah setiap bahan dalam resep produk tersebut
                         detailBahan.forEach(bahan => {
-                            // LANGKAH 3: Cari Kecocokan Nama Bahan dengan Daftar Audit Stok
-                            // Menggunakan lowercase agar "Dimsum" cocok dengan "dimsum"
-                            const aIdx = auditItems.findIndex(audit => 
-                                audit.nama.toLowerCase().includes(bahan.nama.toLowerCase()) || 
-                                bahan.nama.toLowerCase().includes(audit.nama.toLowerCase())
-                            );
+                            // LANGKAH 3: Cocokkan ke Daftar Audit Stok - pakai bahan_id (presisi) utk item
+                            // default dari bahan_baku; fallback ke nama cuma utk item custom (tak punya bahan_id).
+                            const bahanIdNum = parseInt(bahan.bahan_id) || 0;
+                            const aIdx = auditItems.findIndex(audit => {
+                                if (audit.bahanId) return audit.bahanId === bahanIdNum;
+                                return audit.nama.toLowerCase().includes((bahan.nama || '').toLowerCase()) ||
+                                       (bahan.nama || '').toLowerCase().includes(audit.nama.toLowerCase());
+                            });
 
                             if (aIdx > -1) {
                                 // LANGKAH 4: Laku = (Jumlah Bahan di Resep) x (Jumlah Porsi terjual)
@@ -820,6 +851,7 @@ async function fetchLaporanData() {
         
         // 6. Hitung Sisa Stok (Awal - Laku) dan Render Tabel
         auditItems.forEach(it => {
+            it.awal = Math.round(it.awal); // Membulatkan hasil SUM prefill dari stok_history
             it.laku = Math.round(it.laku); // Membulatkan angka (misal 3.99 jadi 4)
             it.sisa = it.awal - it.laku;
         });
@@ -1219,13 +1251,14 @@ async function addAuditItem() {
     }
 
     // Buat objek item baru
-    const newItem = { 
-        id: 'custom_' + Date.now(), 
-        nama: nama, 
-        awal: 0, 
-        laku: 0, 
-        sisa: 0, 
-        isDefault: false 
+    const newItem = {
+        id: 'custom_' + Date.now(),
+        matchNama: nama,
+        nama: nama,
+        awal: 0,
+        laku: 0,
+        sisa: 0,
+        isDefault: false
     };
 
     // ── LINK KE SERVER: Kirim transaksi bayangan agar terbaca di Warehouse Ledger ──
@@ -1312,7 +1345,7 @@ function removeAuditItem(idx) {
     }
 }
 
-window.onload = function() {
+window.onload = async function() {
     buildSidebar();
     updateClock();
     updateInfoBar();
@@ -1322,6 +1355,7 @@ window.onload = function() {
         filterTgl.disabled         = true;
         filterTgl.style.background = '#f0f0f0';
     }
+    await loadDefaultAudit();
     fetchLaporanData();
     renderHistoryLaporan();
 };
